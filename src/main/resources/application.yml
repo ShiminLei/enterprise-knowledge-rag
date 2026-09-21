@@ -1,0 +1,66 @@
+server:
+  port: ${SERVER_PORT:8080}
+
+spring:
+  application:
+    name: enterprise-knowledge-rag
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/knowledge_rag}
+    username: ${POSTGRES_USER:rag}
+    password: ${POSTGRES_PASSWORD:rag_local_password}
+  flyway:
+    enabled: true
+  ai:
+    model:
+      chat: ${AI_CHAT_ENABLED:none}
+      embedding: ${AI_EMBEDDING_ENABLED:none}
+    openai:
+      base-url: ${AI_BASE_URL:https://api.openai.com}
+      api-key: ${AI_API_KEY:disabled}
+      chat:
+        options:
+          model: ${AI_CHAT_MODEL:gpt-4.1-mini}
+          temperature: 0.1
+      embedding:
+        options:
+          model: ${AI_EMBEDDING_MODEL:text-embedding-3-small}
+          dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
+    vectorstore:
+      pgvector:
+        initialize-schema: false
+        dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
+        index-type: HNSW
+        distance-type: COSINE_DISTANCE
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+
+rag:
+  chunk:
+    size: 700
+    overlap: 120
+  retrieval:
+    vector-top-k: 20
+    keyword-top-k: 20
+    final-top-k: 5
+    min-score: 0.35
+    rrf-k: 60
+  prompt:
+    active-version: v1
+  nacos:
+    enabled: ${NACOS_ENABLED:false}
+    server-address: ${NACOS_SERVER_ADDR:localhost:8848}
+    data-id: enterprise-knowledge-rag.yaml
+    group: DEFAULT_GROUP
+
+logging:
+  pattern:
+    level: "%5p [requestId=%X{requestId:-}]"
+  level:
+    com.aishare.knowledgerag: INFO
