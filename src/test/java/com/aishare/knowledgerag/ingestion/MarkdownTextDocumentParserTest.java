@@ -76,6 +76,22 @@ class MarkdownTextDocumentParserTest {
     }
 
     @Test
+    void usesFirstLevelHeadingAsTitleWhenMetadataIsMissing() {
+        String markdown = "# VPN 手册\n\n## 登录\n\n使用公司账号登录。";
+
+        ParsedDocument document = parser.parse(
+                "vpn.md",
+                "text/markdown",
+                markdown.getBytes(StandardCharsets.UTF_8)
+        );
+
+        assertThat(document.title()).isEqualTo("VPN 手册");
+        assertThat(document.sections()).singleElement()
+                .satisfies(section -> assertThat(section.titlePath())
+                        .isEqualTo("VPN 手册 > 登录"));
+    }
+
+    @Test
     void rejectsUnsupportedOrEmptyDocuments() {
         assertThat(parser.supports("manual.pdf", "application/pdf")).isFalse();
 

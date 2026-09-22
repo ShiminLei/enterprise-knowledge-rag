@@ -24,6 +24,7 @@ public class MarkdownTextDocumentParser implements DocumentParser {
             "text/x-markdown"
     );
     private static final Pattern HEADING_PATTERN = Pattern.compile("^(#{1,6})\\s+(.+?)\\s*#*\\s*$");
+    private static final Pattern FIRST_LEVEL_HEADING_PATTERN = Pattern.compile("(?m)^#\\s+(.+?)\\s*#*\\s*$");
     private static final Pattern TITLE_METADATA_PATTERN = Pattern.compile("(?mi)^title\\s*:\\s*[\\\"']?(.+?)[\\\"']?\\s*$");
     private static final Pattern METADATA_LINE_PATTERN = Pattern.compile("^[A-Za-z][A-Za-z0-9_-]*\\s*:\\s*.+$");
 
@@ -57,6 +58,9 @@ public class MarkdownTextDocumentParser implements DocumentParser {
         }
 
         String title = extractMetadataTitle(cleanedText);
+        if (title == null || title.isBlank()) {
+            title = extractFirstLevelHeading(cleanedText);
+        }
         String body = stripLeadingMetadata(cleanedText);
         List<ParsedSection> sections = parseSections(body, title, fileName);
         if (sections.isEmpty()) {
@@ -158,6 +162,11 @@ public class MarkdownTextDocumentParser implements DocumentParser {
 
     private String extractMetadataTitle(String text) {
         Matcher matcher = TITLE_METADATA_PATTERN.matcher(text);
+        return matcher.find() ? matcher.group(1).strip() : null;
+    }
+
+    private String extractFirstLevelHeading(String text) {
+        Matcher matcher = FIRST_LEVEL_HEADING_PATTERN.matcher(text);
         return matcher.find() ? matcher.group(1).strip() : null;
     }
 
