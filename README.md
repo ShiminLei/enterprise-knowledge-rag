@@ -46,6 +46,30 @@ docker compose --profile local-ai up -d
 
 Nacos 控制台地址为 `http://localhost:8081/nacos/`，PostgreSQL 监听 `localhost:5432`。
 
+### 阿里云百炼模型
+
+默认的 `.env.example` 已按百炼华北2（北京）OpenAI 兼容接口配置：
+
+- 对话模型：`qwen-plus`
+- 向量模型：`text-embedding-v4`
+- 向量维度：`1024`，必须与 PostgreSQL 的 `vector(1024)` 一致
+
+复制后只在本地 `.env` 中填写百炼 Key：
+
+```bash
+cp .env.example .env
+```
+
+```dotenv
+AI_API_KEY=sk-your-bailian-api-key
+```
+
+`.env` 已被 `.gitignore` 排除。请不要把 Key 写入 `application.yml`、命令行参数、截图或聊天消息。确保 PostgreSQL 容器正在运行后，用以下脚本加载 `.env` 并启动应用：
+
+```bash
+./scripts/run-local.sh
+```
+
 ## 构建
 
 项目自带 Maven 启动脚本，首次执行会把 Maven 下载到项目的 `.mvn` 目录：

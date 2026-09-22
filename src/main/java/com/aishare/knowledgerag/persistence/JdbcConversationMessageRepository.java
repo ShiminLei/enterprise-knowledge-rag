@@ -3,11 +3,11 @@ package com.aishare.knowledgerag.persistence;
 import com.aishare.knowledgerag.conversation.ConversationMessageRepository;
 import com.aishare.knowledgerag.conversation.ConversationTurn;
 import com.aishare.knowledgerag.conversation.MessageRole;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -76,7 +76,7 @@ public class JdbcConversationMessageRepository implements ConversationMessageRep
     private String toJson(Map<String, Object> metadata) {
         try {
             return objectMapper.writeValueAsString(metadata);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("会话消息元数据序列化失败", exception);
         }
     }

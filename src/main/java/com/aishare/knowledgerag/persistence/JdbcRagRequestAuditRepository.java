@@ -2,11 +2,11 @@ package com.aishare.knowledgerag.persistence;
 
 import com.aishare.knowledgerag.audit.RagRequestAudit;
 import com.aishare.knowledgerag.audit.RagRequestAuditRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @Repository
 public class JdbcRagRequestAuditRepository implements RagRequestAuditRepository {
@@ -55,7 +55,7 @@ public class JdbcRagRequestAuditRepository implements RagRequestAuditRepository 
     private String toJson(RagRequestAudit audit) {
         try {
             return objectMapper.writeValueAsString(audit.retrievedDocumentIds());
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("审计文档列表序列化失败", exception);
         }
     }

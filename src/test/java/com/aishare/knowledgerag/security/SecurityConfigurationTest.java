@@ -1,6 +1,5 @@
 package com.aishare.knowledgerag.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.aishare.knowledgerag.api.AdminPageController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -20,6 +19,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
@@ -129,7 +130,7 @@ class SecurityConfigurationTest {
 
         @Bean
         ObjectMapper objectMapper() {
-            return new ObjectMapper().findAndRegisterModules();
+            return JsonMapper.builder().findAndAddModules().build();
         }
     }
 

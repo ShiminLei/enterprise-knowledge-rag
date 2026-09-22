@@ -7,12 +7,12 @@ import com.aishare.knowledgerag.evaluation.EvaluationRunSummary;
 import com.aishare.knowledgerag.evaluation.EvaluationRunRecord;
 import com.aishare.knowledgerag.evaluation.EvaluationRetrievedChunk;
 import com.aishare.knowledgerag.security.PermissionLevel;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
 import java.util.Collection;
@@ -252,7 +252,7 @@ public class JdbcEvaluationRepository implements EvaluationRepository {
     private List<String> readStringList(String json) {
         try {
             return objectMapper.readValue(json, STRING_LIST);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("评测用例 JSON 解析失败", exception);
         }
     }
@@ -260,7 +260,7 @@ public class JdbcEvaluationRepository implements EvaluationRepository {
     private Map<String, Object> readMap(String json) {
         try {
             return objectMapper.readValue(json, OBJECT_MAP);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("评测 JSON 解析失败", exception);
         }
     }
@@ -268,7 +268,7 @@ public class JdbcEvaluationRepository implements EvaluationRepository {
     private List<EvaluationRetrievedChunk> readChunks(String json) {
         try {
             return objectMapper.readValue(json, RETRIEVED_CHUNKS);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("评测召回结果解析失败", exception);
         }
     }
@@ -279,7 +279,7 @@ public class JdbcEvaluationRepository implements EvaluationRepository {
                 return new EvaluationRunSummary(0, 0, 0, 0, 0, 0, 0);
             }
             return objectMapper.readValue(json, EvaluationRunSummary.class);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("评测汇总解析失败", exception);
         }
     }
@@ -287,7 +287,7 @@ public class JdbcEvaluationRepository implements EvaluationRepository {
     private String toJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException exception) {
+        } catch (JacksonException exception) {
             throw new IllegalStateException("评测结果 JSON 序列化失败", exception);
         }
     }
