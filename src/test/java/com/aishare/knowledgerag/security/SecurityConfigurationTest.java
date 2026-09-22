@@ -87,6 +87,19 @@ class SecurityConfigurationTest {
     }
 
     @Test
+    void requiresEvaluationRunScopeForOfflineEvaluation() throws Exception {
+        mockMvc.perform(post("/api/v1/admin/evaluations/retrieval-runs")
+                        .with(jwt()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        mockMvc.perform(post("/api/v1/admin/evaluations/retrieval-runs")
+                        .with(jwt().authorities(
+                                new SimpleGrantedAuthority("SCOPE_evaluation.run"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void leavesHealthEndpointPublic() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
@@ -132,6 +145,11 @@ class SecurityConfigurationTest {
 
         @GetMapping("/api/v1/admin/prompts/rag-answer-system/versions")
         String promptVersions() {
+            return "ok";
+        }
+
+        @PostMapping("/api/v1/admin/evaluations/retrieval-runs")
+        String runEvaluation() {
             return "ok";
         }
     }

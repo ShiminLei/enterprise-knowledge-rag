@@ -40,6 +40,8 @@ public class SecurityConfiguration {
                         .hasAuthority("SCOPE_knowledge.write")
                         .requestMatchers("/api/v1/admin/prompts/**")
                         .hasAuthority("SCOPE_prompt.manage")
+                        .requestMatchers("/api/v1/admin/evaluations/**")
+                        .hasAuthority("SCOPE_evaluation.run")
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/actuator/**")
                         .hasAuthority("SCOPE_observability.read")

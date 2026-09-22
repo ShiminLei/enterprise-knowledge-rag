@@ -13,10 +13,11 @@
 - JDBC Chat Memory、请求审计、指标和 AI 调用容错
 - JWT 身份认证及租户、部门、密级权限过滤
 - Spring AI 原生流式回答与 Prompt 数据库版本读取
+- 数据库驱动的混合检索离线评测与权限拒答用例
 - PostgreSQL、Nacos 与可选 Ollama 的 Docker Compose
 - 10 份跨部门、跨权限和跨版本的 Mock 企业知识文档
 
-离线评测和管理页面将在后续步骤完成。
+答案质量评测和管理页面将在后续步骤完成。
 
 ## 架构原则
 
@@ -153,6 +154,41 @@ curl -X PUT \
 ```
 
 需要回滚时，对旧版本执行同一个启用接口，例如把路径中的 `v2` 改成 `v1`。启用过程在一个短事务中锁定同一 Prompt 的版本记录，先取消旧版本再启用目标版本；数据库唯一索引同时保证最多只有一个活动版本。
+
+## 离线检索评测
+
+Flyway 的 `V7` 迁移会写入五条固定评测用例，覆盖正常召回、无资料拒答和严格受限资料拒答。运行前需要先导入 `src/main/resources/mock-documents` 中对应的 Mock 文档。
+
+评测使用发起请求者本人的租户、部门和密级权限，因此可以同时检查检索质量和权限过滤。管理令牌需要 `evaluation.run` scope：
+
+```bash
+EVALUATION_TOKEN="$(./scripts/generate-dev-jwt.sh \
+  zhangsan \
+  00000000-0000-0000-0000-000000000001 \
+  evaluation.run)"
+```
+
+使用默认的 `topK` 和最低相似度运行：
+
+```bash
+curl -X POST \
+  http://localhost:8080/api/v1/admin/evaluations/retrieval-runs \
+  -H "Authorization: Bearer $EVALUATION_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+也可以覆盖本次运行参数：
+
+```bash
+curl -X POST \
+  http://localhost:8080/api/v1/admin/evaluations/retrieval-runs \
+  -H "Authorization: Bearer $EVALUATION_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"topK":8,"minScore":0.4}'
+```
+
+每道题都会保存召回片段、耗时、`Hit@K`、文档召回率和拒答判断结果。单题失败不会丢弃其他题的结果；运行状态会变为 `COMPLETED_WITH_ERRORS`。汇总结果包含总通过率、拒答判断准确率和可回答问题的文档命中率。
 
 ## Mock 文档
 
