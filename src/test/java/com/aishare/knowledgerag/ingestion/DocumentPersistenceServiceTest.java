@@ -6,6 +6,7 @@ import com.aishare.knowledgerag.document.KnowledgeChunk;
 import com.aishare.knowledgerag.document.KnowledgeChunkRepository;
 import com.aishare.knowledgerag.document.KnowledgeDocument;
 import com.aishare.knowledgerag.document.KnowledgeDocumentRepository;
+import com.aishare.knowledgerag.embedding.EmbeddedChunk;
 import com.aishare.knowledgerag.security.PermissionLevel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -53,12 +54,13 @@ class DocumentPersistenceServiceTest {
         )).thenReturn(Optional.empty());
         when(documentRepository.insert(org.mockito.ArgumentMatchers.any())).thenReturn(true);
 
-        DocumentImportResult result = service.persist(prepared);
+        EmbeddedIngestion embedded = embeddedIngestion(prepared);
+        DocumentImportResult result = service.persist(embedded);
 
         ArgumentCaptor<KnowledgeDocument> inserted = ArgumentCaptor.forClass(KnowledgeDocument.class);
         verify(documentRepository).insert(inserted.capture());
         assertThat(inserted.getValue().status()).isEqualTo(DocumentStatus.PROCESSING);
-        verify(chunkRepository).insertAll(prepared.chunks());
+        verify(chunkRepository).insertAll(embedded.chunks());
         verify(documentRepository).updateStatus(candidate.id(), DocumentStatus.ACTIVE);
         assertThat(result.outcome()).isEqualTo(DocumentImportOutcome.IMPORTED);
         assertThat(result.chunkCount()).isEqualTo(1);
@@ -72,7 +74,7 @@ class DocumentPersistenceServiceTest {
                 existing.tenantId(), existing.checksum()
         )).thenReturn(Optional.of(existing));
 
-        DocumentImportResult result = service.persist(prepared);
+        DocumentImportResult result = service.persist(embeddedIngestion(prepared));
 
         assertThat(result.outcome()).isEqualTo(DocumentImportOutcome.DUPLICATE);
         assertThat(result.documentId()).isEqualTo(existing.id());
@@ -107,7 +109,7 @@ class DocumentPersistenceServiceTest {
                 candidate.tenantId(), candidate.externalDocumentId(), candidate.version()
         )).thenReturn(Optional.of(existing));
 
-        assertThatThrownBy(() -> service.persist(prepared))
+        assertThatThrownBy(() -> service.persist(embeddedIngestion(prepared)))
                 .isInstanceOf(DocumentVersionConflictException.class)
                 .hasMessageContaining("版本 2.3 已存在");
         verify(documentRepository, never()).insert(org.mockito.ArgumentMatchers.any());
@@ -152,6 +154,15 @@ class DocumentPersistenceServiceTest {
                 "IT 服务台"
         );
         return new PreparedIngestion(document, "VPN 手册", 1, List.of(chunk), List.of());
+    }
+
+    private EmbeddedIngestion embeddedIngestion(PreparedIngestion prepared) {
+        return new EmbeddedIngestion(
+                prepared,
+                prepared.chunks().stream()
+                        .map(chunk -> new EmbeddedChunk(chunk, new float[1024]))
+                        .toList()
+        );
     }
 
     private KnowledgeDocument withStatus(KnowledgeDocument document, DocumentStatus status) {

@@ -24,7 +24,8 @@ public class DocumentPersistenceService {
     }
 
     @Transactional
-    public DocumentImportResult persist(PreparedIngestion prepared) {
+    public DocumentImportResult persist(EmbeddedIngestion embedded) {
+        PreparedIngestion prepared = embedded.prepared();
         KnowledgeDocument candidate = prepared.document();
         Optional<KnowledgeDocument> sameContent = documentRepository.findByTenantIdAndChecksum(
                 candidate.tenantId(),
@@ -58,7 +59,7 @@ public class DocumentPersistenceService {
             throw new DocumentVersionConflictException("文档被其他请求并发导入，请重新查询文档状态");
         }
 
-        chunkRepository.insertAll(prepared.chunks());
+        chunkRepository.insertAll(embedded.chunks());
         documentRepository.updateStatus(candidate.id(), DocumentStatus.ACTIVE);
         return new DocumentImportResult(
                 DocumentImportOutcome.IMPORTED,

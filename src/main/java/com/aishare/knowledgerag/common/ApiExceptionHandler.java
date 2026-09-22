@@ -2,6 +2,8 @@ package com.aishare.knowledgerag.common;
 
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
+import com.aishare.knowledgerag.embedding.EmbeddingGenerationException;
+import com.aishare.knowledgerag.embedding.EmbeddingUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -59,6 +61,22 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.CONFLICT, "DOCUMENT_VERSION_CONFLICT", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(EmbeddingUnavailableException.class)
+    public ResponseEntity<ApiError> handleEmbeddingUnavailable(
+            EmbeddingUnavailableException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, "EMBEDDING_UNAVAILABLE", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(EmbeddingGenerationException.class)
+    public ResponseEntity<ApiError> handleEmbeddingGeneration(
+            EmbeddingGenerationException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.BAD_GATEWAY, "EMBEDDING_FAILED", exception.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> error(

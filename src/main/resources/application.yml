@@ -46,6 +46,9 @@ management:
       show-details: when-authorized
 
 rag:
+  embedding:
+    dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
+    batch-size: ${AI_EMBEDDING_BATCH_SIZE:32}
   chunk:
     size: 700
     overlap: 120

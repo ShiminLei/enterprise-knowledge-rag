@@ -6,13 +6,16 @@ import org.springframework.stereotype.Service;
 public class DocumentImportService {
 
     private final DocumentIngestionPreparationService preparationService;
+    private final DocumentEmbeddingService embeddingService;
     private final DocumentPersistenceService persistenceService;
 
     public DocumentImportService(
             DocumentIngestionPreparationService preparationService,
+            DocumentEmbeddingService embeddingService,
             DocumentPersistenceService persistenceService
     ) {
         this.preparationService = preparationService;
+        this.embeddingService = embeddingService;
         this.persistenceService = persistenceService;
     }
 
@@ -28,6 +31,7 @@ public class DocumentImportService {
                 content,
                 metadata
         );
-        return persistenceService.persist(prepared);
+        EmbeddedIngestion embedded = embeddingService.embed(prepared);
+        return persistenceService.persist(embedded);
     }
 }
