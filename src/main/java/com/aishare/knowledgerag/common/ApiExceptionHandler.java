@@ -1,5 +1,7 @@
 package com.aishare.knowledgerag.common;
 
+import com.aishare.knowledgerag.answer.ChatGenerationException;
+import com.aishare.knowledgerag.answer.ChatUnavailableException;
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
 import com.aishare.knowledgerag.embedding.EmbeddingGenerationException;
@@ -77,6 +79,22 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.BAD_GATEWAY, "EMBEDDING_FAILED", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(ChatUnavailableException.class)
+    public ResponseEntity<ApiError> handleChatUnavailable(
+            ChatUnavailableException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, "CHAT_UNAVAILABLE", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(ChatGenerationException.class)
+    public ResponseEntity<ApiError> handleChatGeneration(
+            ChatGenerationException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.BAD_GATEWAY, "CHAT_GENERATION_FAILED", exception.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> error(

@@ -46,6 +46,8 @@ management:
       show-details: when-authorized
 
 rag:
+  answer:
+    max-context-characters: ${RAG_MAX_CONTEXT_CHARACTERS:12000}
   embedding:
     dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
     batch-size: ${AI_EMBEDDING_BATCH_SIZE:32}
