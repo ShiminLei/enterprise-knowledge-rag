@@ -56,6 +56,8 @@ class JdbcKeywordSearchRepositoryTest {
         assertThat(sql.getValue())
                 .contains("<% lower(c.content)")
                 .contains("d.status = 'ACTIVE'")
-                .contains("c.permission_level IN");
+                .contains("FROM tenant_user_permission permission")
+                .contains("permission.department = c.department")
+                .contains("permission.user_id = :userId");
     }
 }

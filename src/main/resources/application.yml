@@ -22,10 +22,14 @@ spring:
       base-url: ${AI_BASE_URL:https://api.openai.com}
       api-key: ${AI_API_KEY:disabled}
       chat:
+        timeout: ${AI_CHAT_TIMEOUT:30s}
+        max-retries: 0
         options:
           model: ${AI_CHAT_MODEL:gpt-4.1-mini}
           temperature: 0.1
       embedding:
+        timeout: ${AI_EMBEDDING_TIMEOUT:20s}
+        max-retries: 0
         options:
           model: ${AI_EMBEDDING_MODEL:text-embedding-3-small}
           dimensions: ${AI_EMBEDDING_DIMENSIONS:1024}
@@ -46,6 +50,13 @@ management:
       show-details: when-authorized
 
 rag:
+  ai-resilience:
+    max-attempts: ${AI_RETRY_MAX_ATTEMPTS:3}
+    retry-wait: ${AI_RETRY_WAIT:500ms}
+    failure-rate-threshold: ${AI_CIRCUIT_FAILURE_RATE:50}
+    sliding-window-size: ${AI_CIRCUIT_WINDOW_SIZE:10}
+    minimum-number-of-calls: ${AI_CIRCUIT_MIN_CALLS:5}
+    open-state-wait: ${AI_CIRCUIT_OPEN_WAIT:30s}
   audit:
     model-name: ${AI_CHAT_MODEL:gpt-4.1-mini}
     prompt-version: ${RAG_PROMPT_VERSION:v1}

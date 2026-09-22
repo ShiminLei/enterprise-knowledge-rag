@@ -4,6 +4,9 @@ import com.aishare.knowledgerag.common.ApiExceptionHandler;
 import com.aishare.knowledgerag.audit.AuditedConversationalAnswerService;
 import com.aishare.knowledgerag.conversation.ConversationAnswer;
 import com.aishare.knowledgerag.retrieval.RetrievalProperties;
+import com.aishare.knowledgerag.security.AccessContext;
+import com.aishare.knowledgerag.security.AccessContextService;
+import com.aishare.knowledgerag.security.PermissionLevel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -12,6 +15,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Set;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -28,6 +32,13 @@ class KnowledgeAnswerControllerTest {
     void setUp() {
         AuditedConversationalAnswerService answerService =
                 mock(AuditedConversationalAnswerService.class);
+        AccessContextService accessContextService = mock(AccessContextService.class);
+        when(accessContextService.resolve(any(), any())).thenReturn(new AccessContext(
+                UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                "zhangsan",
+                Set.of("信息技术部"),
+                PermissionLevel.INTERNAL
+        ));
         when(answerService.answer(any(), any())).thenReturn(new ConversationAnswer(
                 UUID.fromString("30000000-0000-0000-0000-000000000001"),
                 "请使用公司账号登录。[1]",
@@ -37,7 +48,8 @@ class KnowledgeAnswerControllerTest {
         ));
         mockMvc = MockMvcBuilders.standaloneSetup(new KnowledgeAnswerController(
                         answerService,
-                        new RetrievalProperties(20, 20, 5, 0.35, 60)
+                        new RetrievalProperties(20, 20, 5, 0.35, 60),
+                        accessContextService
                 ))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
@@ -51,9 +63,7 @@ class KnowledgeAnswerControllerTest {
                                 {
                                   "question": "如何登录 VPN？",
                                   "tenantId": "00000000-0000-0000-0000-000000000001",
-                                  "userId": "zhangsan",
-                                  "departments": ["信息技术部"],
-                                  "permissionLevel": "INTERNAL"
+                                  "userId": "zhangsan"
                                 }
                                 """))
                 .andExpect(status().isOk())

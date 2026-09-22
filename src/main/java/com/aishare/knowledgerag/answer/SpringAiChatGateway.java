@@ -1,6 +1,7 @@
 package com.aishare.knowledgerag.answer;
 
 import org.springframework.ai.chat.messages.SystemMessage;
+import com.aishare.knowledgerag.resilience.AiResilienceExecutor;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.model.ChatResponse;
@@ -14,9 +15,14 @@ import java.util.Optional;
 public class SpringAiChatGateway implements ChatGateway {
 
     private final Optional<ChatModel> chatModel;
+    private final AiResilienceExecutor resilienceExecutor;
 
-    public SpringAiChatGateway(Optional<ChatModel> chatModel) {
+    public SpringAiChatGateway(
+            Optional<ChatModel> chatModel,
+            AiResilienceExecutor resilienceExecutor
+    ) {
         this.chatModel = chatModel;
+        this.resilienceExecutor = resilienceExecutor;
     }
 
     @Override
@@ -25,10 +31,12 @@ public class SpringAiChatGateway implements ChatGateway {
                 "聊天模型未启用，请配置 AI_CHAT_ENABLED=openai 和 AI_API_KEY"
         ));
         try {
-            ChatResponse response = model.call(new Prompt(List.of(
-                    new SystemMessage(systemPrompt),
-                    new UserMessage(userPrompt)
-            )));
+            ChatResponse response = resilienceExecutor.executeChat(() ->
+                    model.call(new Prompt(List.of(
+                            new SystemMessage(systemPrompt),
+                            new UserMessage(userPrompt)
+                    )))
+            );
             if (response == null || response.getResult() == null
                     || response.getResult().getOutput() == null
                     || response.getResult().getOutput().getText() == null

@@ -3,6 +3,7 @@ package com.aishare.knowledgerag.common;
 import com.aishare.knowledgerag.answer.ChatGenerationException;
 import com.aishare.knowledgerag.answer.ChatUnavailableException;
 import com.aishare.knowledgerag.conversation.ConversationNotFoundException;
+import com.aishare.knowledgerag.security.KnowledgeAccessDeniedException;
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
 import com.aishare.knowledgerag.embedding.EmbeddingGenerationException;
@@ -104,6 +105,14 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.NOT_FOUND, "CONVERSATION_NOT_FOUND", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(KnowledgeAccessDeniedException.class)
+    public ResponseEntity<ApiError> handleKnowledgeAccessDenied(
+            KnowledgeAccessDeniedException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.FORBIDDEN, "KNOWLEDGE_ACCESS_DENIED", exception.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> error(
