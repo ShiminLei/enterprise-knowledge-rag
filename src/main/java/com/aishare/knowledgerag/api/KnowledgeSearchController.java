@@ -2,6 +2,10 @@ package com.aishare.knowledgerag.api;
 
 import com.aishare.knowledgerag.api.dto.VectorSearchRequest;
 import com.aishare.knowledgerag.api.dto.VectorSearchResponse;
+import com.aishare.knowledgerag.api.dto.HybridSearchRequest;
+import com.aishare.knowledgerag.api.dto.HybridSearchResponse;
+import com.aishare.knowledgerag.retrieval.HybridSearchResult;
+import com.aishare.knowledgerag.retrieval.HybridSearchService;
 import com.aishare.knowledgerag.retrieval.RetrievalProperties;
 import com.aishare.knowledgerag.retrieval.RetrievedChunk;
 import com.aishare.knowledgerag.retrieval.VectorSearchService;
@@ -18,13 +22,16 @@ import java.util.List;
 public class KnowledgeSearchController {
 
     private final VectorSearchService searchService;
+    private final HybridSearchService hybridSearchService;
     private final RetrievalProperties retrievalProperties;
 
     public KnowledgeSearchController(
             VectorSearchService searchService,
+            HybridSearchService hybridSearchService,
             RetrievalProperties retrievalProperties
     ) {
         this.searchService = searchService;
+        this.hybridSearchService = hybridSearchService;
         this.retrievalProperties = retrievalProperties;
     }
 
@@ -32,5 +39,13 @@ public class KnowledgeSearchController {
     public VectorSearchResponse search(@Valid @RequestBody VectorSearchRequest request) {
         List<RetrievedChunk> results = searchService.search(request.toQuery(retrievalProperties));
         return new VectorSearchResponse(request.question().strip(), results.size(), results);
+    }
+
+    @PostMapping("/hybrid")
+    public HybridSearchResponse hybridSearch(@Valid @RequestBody HybridSearchRequest request) {
+        List<HybridSearchResult> results = hybridSearchService.search(
+                request.toQuery(retrievalProperties)
+        );
+        return new HybridSearchResponse(request.question().strip(), results.size(), results);
     }
 }
