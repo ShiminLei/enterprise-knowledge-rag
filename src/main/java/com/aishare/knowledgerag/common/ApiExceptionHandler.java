@@ -7,6 +7,9 @@ import com.aishare.knowledgerag.security.KnowledgeAccessDeniedException;
 import com.aishare.knowledgerag.security.InvalidAuthenticatedIdentityException;
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
+import com.aishare.knowledgerag.prompt.PromptVersionConflictException;
+import com.aishare.knowledgerag.prompt.PromptVersionNotFoundException;
+import com.aishare.knowledgerag.prompt.PromptTemplateNotFoundException;
 import com.aishare.knowledgerag.embedding.EmbeddingGenerationException;
 import com.aishare.knowledgerag.embedding.EmbeddingUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -66,6 +69,33 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.CONFLICT, "DOCUMENT_VERSION_CONFLICT", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(PromptVersionConflictException.class)
+    public ResponseEntity<ApiError> handlePromptVersionConflict(
+            PromptVersionConflictException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.CONFLICT, "PROMPT_VERSION_CONFLICT",
+                exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(PromptVersionNotFoundException.class)
+    public ResponseEntity<ApiError> handlePromptVersionNotFound(
+            PromptVersionNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.NOT_FOUND, "PROMPT_VERSION_NOT_FOUND",
+                exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(PromptTemplateNotFoundException.class)
+    public ResponseEntity<ApiError> handlePromptTemplateNotFound(
+            PromptTemplateNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.SERVICE_UNAVAILABLE, "ACTIVE_PROMPT_NOT_FOUND",
+                exception.getMessage(), request);
     }
 
     @ExceptionHandler(EmbeddingUnavailableException.class)

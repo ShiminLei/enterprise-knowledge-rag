@@ -74,6 +74,19 @@ class SecurityConfigurationTest {
     }
 
     @Test
+    void requiresPromptManageScopeForPromptAdministration() throws Exception {
+        mockMvc.perform(get("/api/v1/admin/prompts/rag-answer-system/versions")
+                        .with(jwt()))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("ACCESS_DENIED"));
+
+        mockMvc.perform(get("/api/v1/admin/prompts/rag-answer-system/versions")
+                        .with(jwt().authorities(
+                                new SimpleGrantedAuthority("SCOPE_prompt.manage"))))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void leavesHealthEndpointPublic() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andExpect(status().isOk());
@@ -115,6 +128,11 @@ class SecurityConfigurationTest {
         @GetMapping("/actuator/health")
         String health() {
             return "UP";
+        }
+
+        @GetMapping("/api/v1/admin/prompts/rag-answer-system/versions")
+        String promptVersions() {
+            return "ok";
         }
     }
 }

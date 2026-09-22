@@ -38,6 +38,8 @@ public class SecurityConfiguration {
                                 "/api/v1/documents/prepare",
                                 "/api/v1/documents/import")
                         .hasAuthority("SCOPE_knowledge.write")
+                        .requestMatchers("/api/v1/admin/prompts/**")
+                        .hasAuthority("SCOPE_prompt.manage")
                         .requestMatchers("/api/**").authenticated()
                         .requestMatchers("/actuator/**")
                         .hasAuthority("SCOPE_observability.read")
