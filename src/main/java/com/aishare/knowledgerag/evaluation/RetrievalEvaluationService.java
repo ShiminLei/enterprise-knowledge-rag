@@ -61,7 +61,7 @@ public class RetrievalEvaluationService {
             results.add(result);
         }
 
-        EvaluationRunSummary summary = summarize(results);
+        EvaluationRunSummary summary = EvaluationSummaries.summarize(results, "hitAtK");
         String status = summary.errorCases() == 0
                 ? "COMPLETED"
                 : "COMPLETED_WITH_ERRORS";
@@ -163,43 +163,9 @@ public class RetrievalEvaluationService {
     ) {
         return new EvaluationCaseResult(
                 UUID.randomUUID(), runId, evaluationCase.id(),
-                evaluationCase.caseKey(), evaluationCase.question(), passed,
+                evaluationCase.caseKey(), evaluationCase.question(), null, passed,
                 chunks, metrics, latencyMs, errorMessage
         );
-    }
-
-    private EvaluationRunSummary summarize(List<EvaluationCaseResult> results) {
-        int total = results.size();
-        int errors = (int) results.stream()
-                .filter(result -> result.errorMessage() != null)
-                .count();
-        int passed = (int) results.stream().filter(EvaluationCaseResult::passed).count();
-        int completed = total - errors;
-        long decisionCorrect = results.stream()
-                .filter(result -> result.errorMessage() == null)
-                .filter(result -> Boolean.TRUE.equals(result.metrics().get("decisionCorrect")))
-                .count();
-        List<EvaluationCaseResult> answerable = results.stream()
-                .filter(result -> result.errorMessage() == null)
-                .filter(result -> Boolean.TRUE.equals(
-                        result.metrics().get("expectedShouldAnswer")))
-                .toList();
-        long answerableHits = answerable.stream()
-                .filter(result -> Boolean.TRUE.equals(result.metrics().get("hitAtK")))
-                .count();
-        return new EvaluationRunSummary(
-                total,
-                passed,
-                total - passed,
-                errors,
-                ratio(passed, total),
-                ratio(decisionCorrect, completed),
-                ratio(answerableHits, answerable.size())
-        );
-    }
-
-    private double ratio(long numerator, long denominator) {
-        return denominator == 0 ? 0.0 : (double) numerator / denominator;
     }
 
     private long elapsedMillis(long startedNanos) {

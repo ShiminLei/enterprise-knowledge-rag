@@ -10,6 +10,8 @@ import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
 import com.aishare.knowledgerag.prompt.PromptVersionConflictException;
 import com.aishare.knowledgerag.prompt.PromptVersionNotFoundException;
 import com.aishare.knowledgerag.prompt.PromptTemplateNotFoundException;
+import com.aishare.knowledgerag.evaluation.EvaluationComparisonException;
+import com.aishare.knowledgerag.evaluation.EvaluationRunNotFoundException;
 import com.aishare.knowledgerag.embedding.EmbeddingGenerationException;
 import com.aishare.knowledgerag.embedding.EmbeddingUnavailableException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -95,6 +97,24 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.SERVICE_UNAVAILABLE, "ACTIVE_PROMPT_NOT_FOUND",
+                exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(EvaluationRunNotFoundException.class)
+    public ResponseEntity<ApiError> handleEvaluationRunNotFound(
+            EvaluationRunNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.NOT_FOUND, "EVALUATION_RUN_NOT_FOUND",
+                exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(EvaluationComparisonException.class)
+    public ResponseEntity<ApiError> handleEvaluationComparison(
+            EvaluationComparisonException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.BAD_REQUEST, "EVALUATION_COMPARISON_INVALID",
                 exception.getMessage(), request);
     }
 

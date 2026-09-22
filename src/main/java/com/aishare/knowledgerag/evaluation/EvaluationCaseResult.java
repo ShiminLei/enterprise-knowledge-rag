@@ -10,6 +10,7 @@ public record EvaluationCaseResult(
         UUID caseId,
         String caseKey,
         String question,
+        String answer,
         boolean passed,
         List<EvaluationRetrievedChunk> retrievedChunks,
         Map<String, Object> metrics,

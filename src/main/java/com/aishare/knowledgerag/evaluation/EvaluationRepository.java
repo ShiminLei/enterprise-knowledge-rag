@@ -5,6 +5,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.Optional;
 
 public interface EvaluationRepository {
 
@@ -25,4 +26,10 @@ public interface EvaluationRepository {
             EvaluationRunSummary summary,
             Instant completedAt
     );
+
+    List<EvaluationRunRecord> findRuns(UUID tenantId, int limit);
+
+    Optional<EvaluationRunRecord> findRun(UUID tenantId, UUID runId);
+
+    List<EvaluationCaseResult> findResults(UUID runId);
 }

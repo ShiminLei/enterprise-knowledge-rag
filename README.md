@@ -17,7 +17,7 @@
 - PostgreSQL、Nacos 与可选 Ollama 的 Docker Compose
 - 10 份跨部门、跨权限和跨版本的 Mock 企业知识文档
 
-答案质量评测和管理页面将在后续步骤完成。
+管理页面将在后续步骤完成。
 
 ## 架构原则
 
@@ -189,6 +189,55 @@ curl -X POST \
 ```
 
 每道题都会保存召回片段、耗时、`Hit@K`、文档召回率和拒答判断结果。单题失败不会丢弃其他题的结果；运行状态会变为 `COMPLETED_WITH_ERRORS`。汇总结果包含总通过率、拒答判断准确率和可回答问题的文档命中率。
+
+## 答案质量评测
+
+答案评测会真正调用当前 RAG 回答链路，因此会产生模型调用和相应费用。它使用与检索评测相同的 `evaluation.run` 权限和请求参数：
+
+```bash
+curl -X POST \
+  http://localhost:8080/api/v1/admin/evaluations/answer-runs \
+  -H "Authorization: Bearer $EVALUATION_TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{}'
+```
+
+当前采用确定性规则评测，不再额外调用一个大模型充当裁判：
+
+- 可回答题必须生成有依据的答案，并包含评测用例配置的全部关键事实词。
+- 至少一条引用必须来自预期文档。
+- 答案正文中的引用编号必须真实存在，且至少一条已引用来源属于预期文档。
+- 应拒答题不能被标记为 `grounded`，防止无依据回答。
+- 每条结果都会保存完整答案、Prompt 版本、关键词覆盖率、引用检查结果和耗时。
+
+答案评测仍然逐题隔离失败。某一道题模型调用异常时，其余题继续执行，已经完成的结果不会丢失。
+
+## 评测历史与对比
+
+查看当前租户最近 20 次评测：
+
+```bash
+curl 'http://localhost:8080/api/v1/admin/evaluations/runs?limit=20' \
+  -H "Authorization: Bearer $EVALUATION_TOKEN"
+```
+
+查看一次运行的完整逐题结果：
+
+```bash
+curl http://localhost:8080/api/v1/admin/evaluations/runs/<runId> \
+  -H "Authorization: Bearer $EVALUATION_TOKEN"
+```
+
+比较两次同类型运行，其中 `baselineRunId` 是改动前，`candidateRunId` 是改动后：
+
+```bash
+curl 'http://localhost:8080/api/v1/admin/evaluations/comparisons?baselineRunId=<旧运行ID>&candidateRunId=<新运行ID>' \
+  -H "Authorization: Bearer $EVALUATION_TOKEN"
+```
+
+对比结果分别给出旧值、候选值和 `delta`。例如通过率从 `0.6` 提升到 `0.8` 时，`delta` 为 `0.2`。答案评测会从逐题结果汇总实际使用的 Prompt 版本；如果一次运行中出现多个版本，会全部列出，提示该次结果不适合作为纯粹的单版本对照实验。
+
+历史查询始终按 JWT 的租户隔离。检索评测和答案评测不能互相比较，尚未完成的运行也不能参与比较。
 
 ## Mock 文档
 

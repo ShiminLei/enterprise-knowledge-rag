@@ -93,7 +93,7 @@ class RetrievalEvaluationServiceTest {
     ) {
         return new EvaluationCase(
                 UUID.randomUUID(), key, key + " question", expectedDocuments,
-                shouldAnswer, PermissionLevel.INTERNAL, List.of("retrieval")
+                List.of(), shouldAnswer, PermissionLevel.INTERNAL, List.of("retrieval")
         );
     }
 
