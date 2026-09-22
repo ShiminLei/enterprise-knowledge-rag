@@ -34,6 +34,7 @@ public class SecurityConfiguration {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(authorize -> authorize
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                        .requestMatchers("/admin", "/admin/**").permitAll()
                         .requestMatchers(HttpMethod.POST,
                                 "/api/v1/documents/prepare",
                                 "/api/v1/documents/import")

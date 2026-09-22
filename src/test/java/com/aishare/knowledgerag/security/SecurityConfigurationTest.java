@@ -1,6 +1,7 @@
 package com.aishare.knowledgerag.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.aishare.knowledgerag.api.AdminPageController;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -105,10 +106,17 @@ class SecurityConfigurationTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void allowsOpeningAdminShellWithoutExposingApiData() throws Exception {
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().is3xxRedirection());
+    }
+
     @Configuration
     @EnableWebMvc
     @EnableWebSecurity
-    @Import({SecurityConfiguration.class, SecurityErrorWriter.class, TestController.class})
+    @Import({SecurityConfiguration.class, SecurityErrorWriter.class,
+            AdminPageController.class, TestController.class})
     static class TestConfiguration {
 
         @Bean

@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="企业知识库智能查询与治理系统管理台">
+    <title>知识库治理台</title>
+    <link rel="stylesheet" href="/admin/styles.css">
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="brand">
+            <div class="brand-mark">K</div>
+            <div>
+                <strong>Knowledge Ops</strong>
+                <span>企业知识治理台</span>
+            </div>
+        </div>
+
+        <nav aria-label="主导航">
+            <button class="nav-item active" data-view="overview" type="button">
+                <span>概览</span><small>01</small>
+            </button>
+            <button class="nav-item" data-view="documents" type="button">
+                <span>文档导入</span><small>02</small>
+            </button>
+            <button class="nav-item" data-view="prompts" type="button">
+                <span>Prompt 版本</span><small>03</small>
+            </button>
+            <button class="nav-item" data-view="evaluations" type="button">
+                <span>质量评测</span><small>04</small>
+            </button>
+        </nav>
+
+        <div class="sidebar-footer">
+            <span class="status-dot" id="tokenStatusDot"></span>
+            <div>
+                <strong id="tokenStatusText">尚未连接</strong>
+                <button class="text-button" id="changeTokenButton" type="button">设置访问令牌</button>
+            </div>
+        </div>
+    </aside>
+
+    <main class="main-content">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">ENTERPRISE RAG CONTROL PLANE</p>
+                <h1 id="pageTitle">运行概览</h1>
+            </div>
+            <div class="topbar-actions">
+                <span class="environment-badge">LOCAL</span>
+                <button class="secondary-button" id="refreshButton" type="button">刷新数据</button>
+            </div>
+        </header>
+
+        <section class="view active" id="overviewView" aria-labelledby="pageTitle">
+            <div class="metric-grid">
+                <article class="metric-card accent-card">
+                    <span>当前 Prompt</span>
+                    <strong id="activePromptMetric">—</strong>
+                    <small>线上回答使用的活动版本</small>
+                </article>
+                <article class="metric-card">
+                    <span>评测运行</span>
+                    <strong id="runCountMetric">—</strong>
+                    <small>当前租户最近记录</small>
+                </article>
+                <article class="metric-card">
+                    <span>最近通过率</span>
+                    <strong id="passRateMetric">—</strong>
+                    <small id="passRateCaption">等待评测数据</small>
+                </article>
+                <article class="metric-card">
+                    <span>系统状态</span>
+                    <strong id="systemStatusMetric">待连接</strong>
+                    <small>API 与权限验证</small>
+                </article>
+            </div>
+
+            <div class="two-column-grid">
+                <article class="panel">
+                    <div class="panel-heading">
+                        <div><span class="section-index">A</span><h2>快速开始</h2></div>
+                    </div>
+                    <div class="quick-actions">
+                        <button class="quick-action" data-go="documents" type="button">
+                            <strong>导入知识文档</strong><span>解析、切块、向量化并入库</span>
+                        </button>
+                        <button class="quick-action" data-go="prompts" type="button">
+                            <strong>发布 Prompt</strong><span>创建新版本，确认后再启用</span>
+                        </button>
+                        <button class="quick-action" data-go="evaluations" type="button">
+                            <strong>运行质量评测</strong><span>检查召回、拒答、关键词与引用</span>
+                        </button>
+                    </div>
+                </article>
+
+                <article class="panel">
+                    <div class="panel-heading">
+                        <div><span class="section-index">B</span><h2>最近运行</h2></div>
+                        <button class="text-button" data-go="evaluations" type="button">查看全部</button>
+                    </div>
+                    <div id="recentRuns" class="compact-list empty-state">连接后显示最近评测</div>
+                </article>
+            </div>
+        </section>
+
+        <section class="view" id="documentsView">
+            <div class="section-intro">
+                <div><p class="eyebrow">INGESTION</p><h2>导入企业知识</h2></div>
+                <p>文件会经过解析、清洗、切块和向量化。只有完整处理成功后，文档才进入可检索状态。</p>
+            </div>
+            <form class="panel form-panel" id="documentForm">
+                <div class="file-drop" id="fileDrop">
+                    <input id="documentFile" name="file" type="file" required
+                           accept=".md,.txt,.pdf,.docx">
+                    <strong>选择或拖入文档</strong>
+                    <span id="selectedFileName">支持 Markdown、TXT、PDF、DOCX，最大 20MB</span>
+                </div>
+                <div class="form-grid">
+                    <label>业务文档 ID<input name="externalDocumentId" required placeholder="IT-VPN-004"></label>
+                    <label>文档标题<input name="title" required placeholder="企业 VPN 使用手册"></label>
+                    <label>来源<input name="source" required placeholder="IT 服务台/远程办公"></label>
+                    <label>版本<input name="version" required placeholder="2.3"></label>
+                    <label>分类<select name="category" required>
+                        <option value="MANUAL">使用手册</option><option value="POLICY">制度政策</option>
+                        <option value="PROCESS">业务流程</option><option value="FAQ">常见问题</option>
+                        <option value="TROUBLESHOOTING">故障处理</option><option value="SECURITY">安全规范</option>
+                    </select></label>
+                    <label>权限级别<select name="permissionLevel" required>
+                        <option value="PUBLIC">公开</option><option value="INTERNAL" selected>内部</option>
+                        <option value="CONFIDENTIAL">机密</option><option value="RESTRICTED">严格受限</option>
+                    </select></label>
+                    <label>所属部门<input name="department" required placeholder="信息技术部"></label>
+                    <label>文档更新时间<input name="updatedAt" type="datetime-local" required></label>
+                </div>
+                <div class="form-actions">
+                    <p>需要令牌包含 <code>knowledge.write</code></p>
+                    <button class="primary-button" type="submit">开始导入</button>
+                </div>
+                <div class="result-box hidden" id="documentResult" aria-live="polite"></div>
+            </form>
+        </section>
+
+        <section class="view" id="promptsView">
+            <div class="section-intro">
+                <div><p class="eyebrow">PROMPT GOVERNANCE</p><h2>Prompt 版本管理</h2></div>
+                <p>新版本先保存为草稿，确认内容后再启用。重新启用旧版本即可完成回滚。</p>
+            </div>
+            <div class="two-column-grid prompt-layout">
+                <article class="panel">
+                    <div class="panel-heading">
+                        <div><span class="section-index">A</span><h2>版本记录</h2></div>
+                        <button class="secondary-button" id="reloadPromptsButton" type="button">刷新</button>
+                    </div>
+                    <div id="promptList" class="stack-list empty-state">连接后加载 Prompt 版本</div>
+                </article>
+                <form class="panel form-panel" id="promptForm">
+                    <div class="panel-heading">
+                        <div><span class="section-index">B</span><h2>创建新版本</h2></div>
+                    </div>
+                    <label>版本号<input name="version" required maxlength="64" placeholder="v2"></label>
+                    <label>系统提示词<textarea name="content" required maxlength="20000" rows="15"
+                        placeholder="输入完整系统提示词。创建后默认不会启用。"></textarea></label>
+                    <div class="form-actions">
+                        <p>需要令牌包含 <code>prompt.manage</code></p>
+                        <button class="primary-button" type="submit">保存为未启用版本</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="view" id="evaluationsView">
+            <div class="section-intro">
+                <div><p class="eyebrow">QUALITY EVALUATION</p><h2>质量评测与对比</h2></div>
+                <p>先运行低成本检索评测，再按需运行会调用模型的答案评测。所有结果都会永久保存。</p>
+            </div>
+            <div class="evaluation-toolbar panel">
+                <div class="inline-fields">
+                    <label>Top K<input id="evaluationTopK" type="number" min="1" max="50" value="5"></label>
+                    <label>最低相似度<input id="evaluationMinScore" type="number" min="0" max="1" step="0.05" value="0.35"></label>
+                </div>
+                <div class="button-group">
+                    <button class="secondary-button" id="runRetrievalButton" type="button">运行检索评测</button>
+                    <button class="primary-button" id="runAnswerButton" type="button">运行答案评测</button>
+                </div>
+            </div>
+
+            <article class="panel">
+                <div class="panel-heading">
+                    <div><span class="section-index">A</span><h2>运行历史</h2></div>
+                    <button class="secondary-button" id="reloadRunsButton" type="button">刷新</button>
+                </div>
+                <div class="table-wrap">
+                    <table>
+                        <thead><tr><th>时间</th><th>类型</th><th>状态</th><th>通过率</th><th>拒答准确率</th><th>操作</th></tr></thead>
+                        <tbody id="runsTableBody"><tr><td colspan="6" class="empty-state">连接后加载评测历史</td></tr></tbody>
+                    </table>
+                </div>
+            </article>
+
+            <div class="two-column-grid evaluation-bottom">
+                <article class="panel">
+                    <div class="panel-heading"><div><span class="section-index">B</span><h2>运行详情</h2></div></div>
+                    <div id="runDetails" class="empty-state">从上方选择一次运行</div>
+                </article>
+                <article class="panel">
+                    <div class="panel-heading"><div><span class="section-index">C</span><h2>两次运行对比</h2></div></div>
+                    <div class="comparison-form">
+                        <label>基准运行<select id="baselineRun"><option value="">请选择</option></select></label>
+                        <label>候选运行<select id="candidateRun"><option value="">请选择</option></select></label>
+                        <button class="primary-button" id="compareRunsButton" type="button">开始对比</button>
+                    </div>
+                    <div id="comparisonResult" class="empty-state">选择两次同类型运行进行比较</div>
+                </article>
+            </div>
+        </section>
+    </main>
+</div>
+
+<dialog id="tokenDialog">
+    <form method="dialog" id="tokenForm" class="token-dialog">
+        <div class="dialog-mark">JWT</div>
+        <p class="eyebrow">SECURE SESSION</p>
+        <h2>连接管理接口</h2>
+        <p>粘贴本地生成的 JWT。令牌仅保存在当前浏览器标签页的 sessionStorage 中。</p>
+        <label>Bearer JWT<textarea id="tokenInput" rows="6" required autocomplete="off"
+            placeholder="eyJhbGciOiJIUzI1NiJ9..."></textarea></label>
+        <div class="dialog-actions">
+            <button class="secondary-button" id="clearTokenButton" type="button">清除令牌</button>
+            <button class="primary-button" value="connect" type="submit">连接</button>
+        </div>
+    </form>
+</dialog>
+
+<div class="toast-region" id="toastRegion" aria-live="polite"></div>
+<script src="/admin/app.js" defer></script>
+</body>
+</html>
