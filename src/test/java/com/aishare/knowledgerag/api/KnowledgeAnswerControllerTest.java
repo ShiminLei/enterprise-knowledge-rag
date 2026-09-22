@@ -4,6 +4,7 @@ import com.aishare.knowledgerag.common.ApiExceptionHandler;
 import com.aishare.knowledgerag.audit.AuditedConversationalAnswerService;
 import com.aishare.knowledgerag.audit.RequestIdProvider;
 import com.aishare.knowledgerag.conversation.ConversationAnswer;
+import com.aishare.knowledgerag.conversation.ConversationAnswerStream;
 import com.aishare.knowledgerag.retrieval.RetrievalProperties;
 import com.aishare.knowledgerag.security.AccessContext;
 import com.aishare.knowledgerag.security.AccessContextService;
@@ -27,6 +28,7 @@ import java.time.Duration;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import reactor.core.publisher.Flux;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -70,10 +72,17 @@ class KnowledgeAnswerControllerTest {
                 1,
                 List.of()
         ));
+        when(answerService.stream(any(), any())).thenReturn(new ConversationAnswerStream(
+                UUID.fromString("30000000-0000-0000-0000-000000000001"),
+                true,
+                1,
+                List.of(),
+                Flux.just("请使用公司", "账号登录。[1]")
+        ));
         AnswerStreamingService streamingService = new AnswerStreamingService(
                 answerService,
                 new RequestIdProvider(),
-                new AnswerStreamingProperties(Duration.ofSeconds(5), 6, 1, 1, 1),
+                new AnswerStreamingProperties(Duration.ofSeconds(5), 1, 1, 1, 4),
                 streamingExecutor
         );
         mockMvc = MockMvcBuilders.standaloneSetup(new KnowledgeAnswerController(
@@ -146,8 +155,14 @@ class KnowledgeAnswerControllerTest {
 
     @Test
     void sendsSafeErrorEventWhenAnswerGenerationFails() throws Exception {
-        when(answerService.answer(any(), any()))
-                .thenThrow(new IllegalStateException("sensitive internal detail"));
+        when(answerService.stream(any(), any()))
+                .thenReturn(new ConversationAnswerStream(
+                        UUID.randomUUID(),
+                        true,
+                        0,
+                        List.of(),
+                        Flux.error(new IllegalStateException("sensitive internal detail"))
+                ));
 
         MvcResult result = mockMvc.perform(post("/api/v1/answers/stream")
                         .contentType(MediaType.APPLICATION_JSON)

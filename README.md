@@ -12,10 +12,11 @@
 - 基于引用的 RAG 回答、上下文组装和 Prompt 注入防护
 - JDBC Chat Memory、请求审计、指标和 AI 调用容错
 - JWT 身份认证及租户、部门、密级权限过滤
+- Spring AI 原生流式回答与 Prompt 数据库版本读取
 - PostgreSQL、Nacos 与可选 Ollama 的 Docker Compose
 - 10 份跨部门、跨权限和跨版本的 Mock 企业知识文档
 
-评测、流式输出、Prompt 数据库版本管理和管理页面将在后续步骤完成。
+Prompt 版本发布/回滚、离线评测和管理页面将在后续步骤完成。
 
 ## 架构原则
 
@@ -108,7 +109,15 @@ curl -N http://localhost:8080/api/v1/answers/stream \
   -d '{"question":"如何登录 VPN？"}'
 ```
 
-事件顺序为 `started`、一个或多个 `delta`、`citations`、`completed`。如果生成失败，连接中会收到 `error` 事件。当前实现是在完整 RAG 回答生成并持久化后分片推送，保证同步和流式接口共享相同的权限、引用、会话与审计逻辑；后续可以继续升级为模型原生逐 Token 流式输出。
+事件顺序为 `started`、一个或多个 `delta`、`citations`、`completed`。如果生成失败，连接中会收到 `error` 事件。`delta` 直接来自 Spring AI 的模型流；服务端一边转发、一边累积完整答案，只有流正常结束后才在短事务中保存用户消息、完整助手答案和引用。客户端中途断开时会取消模型订阅，并记录取消审计。
+
+模型已经输出第一个片段后不会自动重试，因为重新请求模型可能从头生成，导致前端看到重复或互相矛盾的半段答案。流中断时返回 `error`，由用户明确重新发起请求。
+
+## Prompt 版本
+
+RAG 系统提示词不再写死在 Java 代码中。Flyway 的 `V6` 迁移会向 `prompt_template` 表写入并启用 `rag-answer-system` 的 `v1` 版本，回答服务在有检索证据、准备调用模型时读取当前启用版本。
+
+同步回答和流式回答都会携带实际使用的 `promptVersion`，请求审计也保存同一个版本号。无检索证据时不会调用模型，版本记为 `none`；没有启用的模板时直接失败，不会悄悄退回某个硬编码 Prompt。
 
 ## Mock 文档
 

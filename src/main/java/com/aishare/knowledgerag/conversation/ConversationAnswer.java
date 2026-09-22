@@ -11,10 +11,21 @@ public record ConversationAnswer(
         String answer,
         boolean grounded,
         int retrievedCount,
-        List<AnswerCitation> citations
+        List<AnswerCitation> citations,
+        String promptVersion
 ) {
     public ConversationAnswer {
         citations = List.copyOf(citations);
+    }
+
+    public ConversationAnswer(
+            UUID conversationId,
+            String answer,
+            boolean grounded,
+            int retrievedCount,
+            List<AnswerCitation> citations
+    ) {
+        this(conversationId, answer, grounded, retrievedCount, citations, "none");
     }
 
     public static ConversationAnswer from(UUID conversationId, GroundedAnswer answer) {
@@ -23,7 +34,8 @@ public record ConversationAnswer(
                 answer.answer(),
                 answer.grounded(),
                 answer.retrievedCount(),
-                answer.citations()
+                answer.citations(),
+                answer.promptVersion()
         );
     }
 }

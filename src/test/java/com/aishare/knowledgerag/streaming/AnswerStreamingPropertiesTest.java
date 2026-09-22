@@ -11,16 +11,16 @@ class AnswerStreamingPropertiesTest {
     @Test
     void rejectsInvalidThreadPoolSize() {
         assertThatThrownBy(() -> new AnswerStreamingProperties(
-                Duration.ofSeconds(30), 24, 4, 2, 50
+                Duration.ofSeconds(30), 4, 2, 50, 32
         )).isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("流式线程数配置不正确");
     }
 
     @Test
-    void rejectsInvalidChunkSize() {
+    void rejectsInvalidQueueCapacity() {
         assertThatThrownBy(() -> new AnswerStreamingProperties(
-                Duration.ofSeconds(30), 0, 2, 8, 50
+                Duration.ofSeconds(30), 2, 8, 0, 32
         )).isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("chunk-characters");
+                .hasMessageContaining("queue-capacity");
     }
 }

@@ -2,6 +2,7 @@ package com.aishare.knowledgerag.conversation;
 
 import com.aishare.knowledgerag.answer.GroundedAnswer;
 import com.aishare.knowledgerag.answer.RagAnswerService;
+import com.aishare.knowledgerag.answer.RagAnswerStream;
 import com.aishare.knowledgerag.retrieval.VectorSearchQuery;
 import com.aishare.knowledgerag.security.AccessContext;
 import com.aishare.knowledgerag.security.PermissionLevel;
@@ -10,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import reactor.core.publisher.Flux;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
@@ -119,6 +121,56 @@ class ConversationalAnswerServiceTest {
                 .isInstanceOf(ConversationNotFoundException.class)
                 .hasMessage("会话不存在或无权访问");
         verify(ragAnswerService, never()).answer(any(), anyList());
+    }
+
+    @Test
+    void persistsCompleteStreamOnlyAfterItFinishes() {
+        RagAnswerStream ragStream = new RagAnswerStream(
+                true,
+                1,
+                List.of(),
+                Flux.just("完整", "答案。[1]")
+        );
+        when(ragAnswerService.stream(any(VectorSearchQuery.class), anyList()))
+                .thenReturn(ragStream);
+
+        ConversationAnswerStream result = service.stream(Optional.empty(), query());
+        verify(persistenceService, never()).save(any(),
+                org.mockito.ArgumentMatchers.anyBoolean(), any(), any());
+
+        assertThat(result.content().collectList().block())
+                .containsExactly("完整", "答案。[1]");
+
+        ArgumentCaptor<GroundedAnswer> answer =
+                ArgumentCaptor.forClass(GroundedAnswer.class);
+        verify(persistenceService).save(
+                any(Conversation.class),
+                org.mockito.ArgumentMatchers.eq(true),
+                org.mockito.ArgumentMatchers.eq("如何登录 VPN？"),
+                answer.capture()
+        );
+        assertThat(answer.getValue().answer()).isEqualTo("完整答案。[1]");
+    }
+
+    @Test
+    void doesNotPersistPartialAnswerWhenModelStreamFails() {
+        when(ragAnswerService.stream(any(VectorSearchQuery.class), anyList()))
+                .thenReturn(new RagAnswerStream(
+                        true,
+                        1,
+                        List.of(),
+                        Flux.concat(
+                                Flux.just("半截答案"),
+                                Flux.error(new IllegalStateException("model disconnected"))
+                        )
+                ));
+
+        ConversationAnswerStream result = service.stream(Optional.empty(), query());
+
+        assertThatThrownBy(() -> result.content().blockLast())
+                .isInstanceOf(IllegalStateException.class);
+        verify(persistenceService, never()).save(any(),
+                org.mockito.ArgumentMatchers.anyBoolean(), any(), any());
     }
 
     private VectorSearchQuery query() {

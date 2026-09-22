@@ -2,8 +2,10 @@ package com.aishare.knowledgerag.conversation;
 
 import com.aishare.knowledgerag.answer.GroundedAnswer;
 import com.aishare.knowledgerag.answer.RagAnswerService;
+import com.aishare.knowledgerag.answer.RagAnswerStream;
 import com.aishare.knowledgerag.retrieval.VectorSearchQuery;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
 
 import java.time.Instant;
 import java.util.ArrayList;
@@ -39,6 +41,53 @@ public class ConversationalAnswerService {
             Optional<UUID> conversationId,
             VectorSearchQuery query
     ) {
+        ConversationContext context = prepareConversation(conversationId, query);
+
+        GroundedAnswer answer = answerService.answer(query, context.history());
+        persistenceService.save(
+                context.conversation(),
+                context.isNew(),
+                query.question(),
+                answer
+        );
+        return ConversationAnswer.from(context.conversation().id(), answer);
+    }
+
+    public ConversationAnswerStream stream(
+            Optional<UUID> conversationId,
+            VectorSearchQuery query
+    ) {
+        ConversationContext context = prepareConversation(conversationId, query);
+        RagAnswerStream answer = answerService.stream(query, context.history());
+        StringBuilder fullAnswer = new StringBuilder();
+        Flux<String> content = answer.content()
+                .doOnNext(fullAnswer::append)
+                .doOnComplete(() -> persistenceService.save(
+                        context.conversation(),
+                        context.isNew(),
+                        query.question(),
+                        new GroundedAnswer(
+                                fullAnswer.toString(),
+                                answer.grounded(),
+                                answer.retrievedCount(),
+                                answer.citations(),
+                                answer.promptVersion()
+                        )
+                ));
+        return new ConversationAnswerStream(
+                context.conversation().id(),
+                answer.grounded(),
+                answer.retrievedCount(),
+                answer.citations(),
+                answer.promptVersion(),
+                content
+        );
+    }
+
+    private ConversationContext prepareConversation(
+            Optional<UUID> conversationId,
+            VectorSearchQuery query
+    ) {
         Conversation conversation = conversationId
                 .map(id -> findOwned(id, query))
                 .orElseGet(() -> newConversation(query));
@@ -46,15 +95,7 @@ public class ConversationalAnswerService {
         List<ConversationTurn> history = isNew
                 ? List.of()
                 : recentHistory(conversation.id());
-
-        GroundedAnswer answer = answerService.answer(query, history);
-        persistenceService.save(
-                conversation,
-                isNew,
-                query.question(),
-                answer
-        );
-        return ConversationAnswer.from(conversation.id(), answer);
+        return new ConversationContext(conversation, isNew, history);
     }
 
     private Conversation findOwned(UUID id, VectorSearchQuery query) {
@@ -96,5 +137,12 @@ public class ConversationalAnswerService {
         }
         Collections.reverse(selectedNewestFirst);
         return List.copyOf(selectedNewestFirst);
+    }
+
+    private record ConversationContext(
+            Conversation conversation,
+            boolean isNew,
+            List<ConversationTurn> history
+    ) {
     }
 }

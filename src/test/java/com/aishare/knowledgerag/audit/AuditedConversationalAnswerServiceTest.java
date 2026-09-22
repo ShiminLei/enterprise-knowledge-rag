@@ -3,6 +3,7 @@ package com.aishare.knowledgerag.audit;
 import com.aishare.knowledgerag.answer.AnswerCitation;
 import com.aishare.knowledgerag.answer.ChatGenerationException;
 import com.aishare.knowledgerag.conversation.ConversationAnswer;
+import com.aishare.knowledgerag.conversation.ConversationAnswerStream;
 import com.aishare.knowledgerag.conversation.ConversationalAnswerService;
 import com.aishare.knowledgerag.ingestion.DocumentChecksumService;
 import com.aishare.knowledgerag.retrieval.VectorSearchQuery;
@@ -14,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
+import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
@@ -49,7 +52,7 @@ class AuditedConversationalAnswerServiceTest {
                 persistenceService,
                 new DocumentChecksumService(),
                 requestIdProvider,
-                new AuditProperties("gpt-test", "v1"),
+                new AuditProperties("gpt-test"),
                 meterRegistry
         );
         when(requestIdProvider.currentOrCreate()).thenReturn("req-test-1");
@@ -72,7 +75,8 @@ class AuditedConversationalAnswerServiceTest {
                         3,
                         "IT 服务台",
                         "2.3"
-                ))
+                )),
+                "v7"
         ));
 
         service.answer(Optional.empty(), query());
@@ -83,6 +87,7 @@ class AuditedConversationalAnswerServiceTest {
         assertThat(audit.getValue().questionDigest()).hasSize(64).doesNotContain("VPN");
         assertThat(audit.getValue().retrievedDocumentIds()).containsExactly(documentId);
         assertThat(audit.getValue().outcome()).isEqualTo("SUCCESS");
+        assertThat(audit.getValue().promptVersion()).isEqualTo("v7");
         assertThat(meterRegistry.counter("rag.answer.requests", "outcome", "SUCCESS").count())
                 .isEqualTo(1);
     }
@@ -111,6 +116,51 @@ class AuditedConversationalAnswerServiceTest {
                 .when(persistenceService).save(any());
 
         assertThat(service.answer(Optional.empty(), query())).isEqualTo(expected);
+    }
+
+    @Test
+    void recordsStreamAuditAfterSuccessfulCompletion() {
+        UUID conversationId = UUID.randomUUID();
+        when(delegate.stream(Optional.empty(), query())).thenReturn(
+                new ConversationAnswerStream(
+                        conversationId,
+                        true,
+                        1,
+                        List.of(),
+                        Flux.just("答", "案")
+                )
+        );
+
+        ConversationAnswerStream stream = service.stream(Optional.empty(), query());
+        assertThat(stream.content().collectList().block()).containsExactly("答", "案");
+
+        ArgumentCaptor<RagRequestAudit> audit = ArgumentCaptor.forClass(RagRequestAudit.class);
+        verify(persistenceService).save(audit.capture());
+        assertThat(audit.getValue().conversationId()).isEqualTo(conversationId);
+        assertThat(audit.getValue().outcome()).isEqualTo("SUCCESS");
+    }
+
+    @Test
+    void recordsCancellationWhenStreamingClientDisconnects() {
+        when(delegate.stream(Optional.empty(), query())).thenReturn(
+                new ConversationAnswerStream(
+                        UUID.randomUUID(),
+                        true,
+                        1,
+                        List.of(),
+                        Flux.never()
+                )
+        );
+
+        Disposable subscription = service.stream(Optional.empty(), query())
+                .content()
+                .subscribe();
+        subscription.dispose();
+
+        ArgumentCaptor<RagRequestAudit> audit = ArgumentCaptor.forClass(RagRequestAudit.class);
+        verify(persistenceService).save(audit.capture());
+        assertThat(audit.getValue().outcome()).isEqualTo("CANCELLED");
+        assertThat(audit.getValue().errorCode()).isEqualTo("CLIENT_CANCELLED");
     }
 
     private VectorSearchQuery query() {

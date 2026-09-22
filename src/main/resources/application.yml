@@ -52,10 +52,10 @@ management:
 rag:
   streaming:
     timeout: ${RAG_STREAM_TIMEOUT:120s}
-    chunk-characters: ${RAG_STREAM_CHUNK_CHARACTERS:24}
     core-threads: ${RAG_STREAM_CORE_THREADS:2}
     max-threads: ${RAG_STREAM_MAX_THREADS:8}
     queue-capacity: ${RAG_STREAM_QUEUE_CAPACITY:50}
+    max-active-streams: ${RAG_STREAM_MAX_ACTIVE:32}
   security:
     jwt:
       issuer: ${RAG_JWT_ISSUER:enterprise-knowledge-rag}
@@ -69,7 +69,6 @@ rag:
     open-state-wait: ${AI_CIRCUIT_OPEN_WAIT:30s}
   audit:
     model-name: ${AI_CHAT_MODEL:gpt-4.1-mini}
-    prompt-version: ${RAG_PROMPT_VERSION:v1}
   conversation:
     history-limit: ${RAG_HISTORY_LIMIT:10}
     max-history-characters: ${RAG_MAX_HISTORY_CHARACTERS:4000}
