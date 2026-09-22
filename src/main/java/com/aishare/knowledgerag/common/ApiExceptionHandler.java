@@ -1,6 +1,7 @@
 package com.aishare.knowledgerag.common;
 
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
+import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,6 +51,14 @@ public class ApiExceptionHandler {
                 .reduce((left, right) -> left + "; " + right)
                 .orElse("请求参数校验失败");
         return error(HttpStatus.BAD_REQUEST, "VALIDATION_FAILED", message, request);
+    }
+
+    @ExceptionHandler(DocumentVersionConflictException.class)
+    public ResponseEntity<ApiError> handleDocumentVersionConflict(
+            DocumentVersionConflictException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.CONFLICT, "DOCUMENT_VERSION_CONFLICT", exception.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> error(

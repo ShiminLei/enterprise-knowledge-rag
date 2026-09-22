@@ -7,6 +7,9 @@ import com.aishare.knowledgerag.ingestion.DocumentCleaningPipeline;
 import com.aishare.knowledgerag.ingestion.DocumentIngestionPreviewService;
 import com.aishare.knowledgerag.ingestion.DocumentIngestionPreparationService;
 import com.aishare.knowledgerag.ingestion.DocumentChecksumService;
+import com.aishare.knowledgerag.ingestion.DocumentImportOutcome;
+import com.aishare.knowledgerag.ingestion.DocumentImportResult;
+import com.aishare.knowledgerag.ingestion.DocumentImportService;
 import com.aishare.knowledgerag.ingestion.DocumentParserRegistry;
 import com.aishare.knowledgerag.ingestion.DocumentProcessingService;
 import com.aishare.knowledgerag.ingestion.MarkdownTextDocumentParser;
@@ -18,7 +21,11 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.UUID;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -26,6 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DocumentIngestionControllerTest {
 
     private MockMvc mockMvc;
+    private DocumentImportService importService;
 
     @BeforeEach
     void setUp() {
@@ -36,13 +44,15 @@ class DocumentIngestionControllerTest {
                 new SectionAwareTextChunker(new ChunkingProperties(120, 20))
         );
         DocumentIngestionPreviewService service = new DocumentIngestionPreviewService(processingService);
+        importService = mock(DocumentImportService.class);
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new DocumentIngestionController(
                         service,
                         new DocumentIngestionPreparationService(
                                 processingService,
                                 new DocumentChecksumService()
-                        )
+                        ),
+                        importService
                 ))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
@@ -150,5 +160,53 @@ class DocumentIngestionControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
                 .andExpect(jsonPath("$.message").value("department: 不能为空"));
+    }
+
+    @Test
+    void importsDocumentAndReturnsCreated() throws Exception {
+        when(importService.importDocument(any(), any(), any(), any()))
+                .thenReturn(new DocumentImportResult(
+                        DocumentImportOutcome.IMPORTED,
+                        UUID.fromString("10000000-0000-0000-0000-000000000001"),
+                        "abc123",
+                        3,
+                        "文档导入成功",
+                        List.of()
+                ));
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "vpn.md",
+                "text/markdown",
+                "# VPN 手册\n\n正文。".getBytes(StandardCharsets.UTF_8)
+        );
+        MockMultipartFile metadata = validMetadata();
+
+        mockMvc.perform(multipart("/api/v1/documents/import")
+                        .file(file)
+                        .file(metadata))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.outcome").value("IMPORTED"))
+                .andExpect(jsonPath("$.chunkCount").value(3));
+    }
+
+    private MockMultipartFile validMetadata() {
+        return new MockMultipartFile(
+                "metadata",
+                "metadata.json",
+                "application/json",
+                """
+                        {
+                          "tenantId": "00000000-0000-0000-0000-000000000001",
+                          "externalDocumentId": "IT-VPN-004",
+                          "title": "VPN 手册",
+                          "source": "IT 服务台",
+                          "category": "MANUAL",
+                          "version": "2.3",
+                          "updatedAt": "2026-05-20T00:00:00Z",
+                          "permissionLevel": "INTERNAL",
+                          "department": "信息技术部"
+                        }
+                        """.getBytes(StandardCharsets.UTF_8)
+        );
     }
 }

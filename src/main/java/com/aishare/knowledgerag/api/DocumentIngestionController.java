@@ -3,11 +3,16 @@ package com.aishare.knowledgerag.api;
 import com.aishare.knowledgerag.api.dto.DocumentImportMetadataRequest;
 import com.aishare.knowledgerag.ingestion.DocumentIngestionPreparationService;
 import com.aishare.knowledgerag.ingestion.DocumentIngestionPreviewService;
+import com.aishare.knowledgerag.ingestion.DocumentImportOutcome;
+import com.aishare.knowledgerag.ingestion.DocumentImportResult;
+import com.aishare.knowledgerag.ingestion.DocumentImportService;
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.IngestionPreview;
 import com.aishare.knowledgerag.ingestion.PreparedIngestion;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -22,13 +27,16 @@ public class DocumentIngestionController {
 
     private final DocumentIngestionPreviewService previewService;
     private final DocumentIngestionPreparationService preparationService;
+    private final DocumentImportService importService;
 
     public DocumentIngestionController(
             DocumentIngestionPreviewService previewService,
-            DocumentIngestionPreparationService preparationService
+            DocumentIngestionPreparationService preparationService,
+            DocumentImportService importService
     ) {
         this.previewService = previewService;
         this.preparationService = preparationService;
+        this.importService = importService;
     }
 
     @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -56,6 +64,27 @@ public class DocumentIngestionController {
                     file.getBytes(),
                     metadata.toDomain()
             );
+        } catch (IOException exception) {
+            throw new DocumentParseException("读取上传文件失败", exception);
+        }
+    }
+
+    @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<DocumentImportResult> importDocument(
+            @RequestPart("file") MultipartFile file,
+            @Valid @RequestPart("metadata") DocumentImportMetadataRequest metadata
+    ) {
+        try {
+            DocumentImportResult result = importService.importDocument(
+                    file.getOriginalFilename(),
+                    file.getContentType(),
+                    file.getBytes(),
+                    metadata.toDomain()
+            );
+            HttpStatus status = result.outcome() == DocumentImportOutcome.IMPORTED
+                    ? HttpStatus.CREATED
+                    : HttpStatus.OK;
+            return ResponseEntity.status(status).body(result);
         } catch (IOException exception) {
             throw new DocumentParseException("读取上传文件失败", exception);
         }
