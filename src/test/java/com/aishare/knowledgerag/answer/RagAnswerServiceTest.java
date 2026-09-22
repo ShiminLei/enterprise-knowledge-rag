@@ -1,6 +1,8 @@
 package com.aishare.knowledgerag.answer;
 
 import com.aishare.knowledgerag.document.DocumentCategory;
+import com.aishare.knowledgerag.conversation.ConversationTurn;
+import com.aishare.knowledgerag.conversation.MessageRole;
 import com.aishare.knowledgerag.retrieval.HybridSearchResult;
 import com.aishare.knowledgerag.retrieval.HybridSearchService;
 import com.aishare.knowledgerag.retrieval.RetrievedChunk;
@@ -8,6 +10,7 @@ import com.aishare.knowledgerag.retrieval.VectorSearchQuery;
 import com.aishare.knowledgerag.security.AccessContext;
 import com.aishare.knowledgerag.security.PermissionLevel;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.util.List;
 import java.util.Set;
@@ -16,6 +19,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class RagAnswerServiceTest {
@@ -65,6 +69,35 @@ class RagAnswerServiceTest {
         assertThat(result.grounded()).isFalse();
         assertThat(result.citations()).isEmpty();
         assertThat(result.answer()).contains("无法找到足够依据");
+    }
+
+    @Test
+    void includesEscapedConversationHistoryAsContextButNotEvidence() {
+        HybridSearchService searchService = mock(HybridSearchService.class);
+        when(searchService.search(any())).thenReturn(List.of(searchResult()));
+        RecordingChatGateway chatGateway = new RecordingChatGateway();
+        RagAnswerService service = new RagAnswerService(
+                searchService,
+                chatGateway,
+                new AnswerProperties(12000)
+        );
+
+        service.answer(query(), List.of(
+                new ConversationTurn(MessageRole.USER, "刚才说的 <VPN> 是什么？"),
+                new ConversationTurn(MessageRole.ASSISTANT, "它是远程访问工具。")
+        ));
+
+        assertThat(chatGateway.userPrompt)
+                .contains("<conversation_history>")
+                .contains("刚才说的 &lt;VPN&gt; 是什么？")
+                .contains("role=\"ASSISTANT\"");
+        assertThat(chatGateway.systemPrompt).contains("不是事实依据");
+        ArgumentCaptor<VectorSearchQuery> retrievalQuery =
+                ArgumentCaptor.forClass(VectorSearchQuery.class);
+        verify(searchService).search(retrievalQuery.capture());
+        assertThat(retrievalQuery.getValue().question())
+                .contains("上一问题：刚才说的 <VPN> 是什么？")
+                .contains("当前问题：如何登录 VPN？");
     }
 
     private HybridSearchResult searchResult() {

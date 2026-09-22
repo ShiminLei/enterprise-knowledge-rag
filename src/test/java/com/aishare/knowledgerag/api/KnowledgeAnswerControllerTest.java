@@ -1,8 +1,8 @@
 package com.aishare.knowledgerag.api;
 
-import com.aishare.knowledgerag.answer.GroundedAnswer;
-import com.aishare.knowledgerag.answer.RagAnswerService;
 import com.aishare.knowledgerag.common.ApiExceptionHandler;
+import com.aishare.knowledgerag.conversation.ConversationAnswer;
+import com.aishare.knowledgerag.conversation.ConversationalAnswerService;
 import com.aishare.knowledgerag.retrieval.RetrievalProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +11,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.util.List;
+import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -25,8 +26,9 @@ class KnowledgeAnswerControllerTest {
 
     @BeforeEach
     void setUp() {
-        RagAnswerService answerService = mock(RagAnswerService.class);
-        when(answerService.answer(any())).thenReturn(new GroundedAnswer(
+        ConversationalAnswerService answerService = mock(ConversationalAnswerService.class);
+        when(answerService.answer(any(), any())).thenReturn(new ConversationAnswer(
+                UUID.fromString("30000000-0000-0000-0000-000000000001"),
                 "请使用公司账号登录。[1]",
                 true,
                 1,
@@ -54,6 +56,8 @@ class KnowledgeAnswerControllerTest {
                                 }
                                 """))
                 .andExpect(status().isOk())
+                .andExpect(jsonPath("$.conversationId")
+                        .value("30000000-0000-0000-0000-000000000001"))
                 .andExpect(jsonPath("$.answer").value("请使用公司账号登录。[1]"))
                 .andExpect(jsonPath("$.grounded").value(true))
                 .andExpect(jsonPath("$.retrievedCount").value(1));

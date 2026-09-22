@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.UUID;
 
 public record AnswerRequest(
+        UUID conversationId,
         @NotBlank String question,
         @NotNull UUID tenantId,
         @NotBlank String userId,

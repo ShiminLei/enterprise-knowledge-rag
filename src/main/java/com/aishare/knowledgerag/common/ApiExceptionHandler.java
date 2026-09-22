@@ -2,6 +2,7 @@ package com.aishare.knowledgerag.common;
 
 import com.aishare.knowledgerag.answer.ChatGenerationException;
 import com.aishare.knowledgerag.answer.ChatUnavailableException;
+import com.aishare.knowledgerag.conversation.ConversationNotFoundException;
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
 import com.aishare.knowledgerag.embedding.EmbeddingGenerationException;
@@ -95,6 +96,14 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.BAD_GATEWAY, "CHAT_GENERATION_FAILED", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(ConversationNotFoundException.class)
+    public ResponseEntity<ApiError> handleConversationNotFound(
+            ConversationNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.NOT_FOUND, "CONVERSATION_NOT_FOUND", exception.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> error(
