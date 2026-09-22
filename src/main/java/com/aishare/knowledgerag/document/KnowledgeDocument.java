@@ -8,6 +8,7 @@ import java.util.UUID;
 public record KnowledgeDocument(
         UUID id,
         UUID tenantId,
+        String externalDocumentId,
         String title,
         String source,
         String fileName,

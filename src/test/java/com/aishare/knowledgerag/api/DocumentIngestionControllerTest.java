@@ -5,7 +5,10 @@ import com.aishare.knowledgerag.chunking.SectionAwareTextChunker;
 import com.aishare.knowledgerag.common.ApiExceptionHandler;
 import com.aishare.knowledgerag.ingestion.DocumentCleaningPipeline;
 import com.aishare.knowledgerag.ingestion.DocumentIngestionPreviewService;
+import com.aishare.knowledgerag.ingestion.DocumentIngestionPreparationService;
+import com.aishare.knowledgerag.ingestion.DocumentChecksumService;
 import com.aishare.knowledgerag.ingestion.DocumentParserRegistry;
+import com.aishare.knowledgerag.ingestion.DocumentProcessingService;
 import com.aishare.knowledgerag.ingestion.MarkdownTextDocumentParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,12 +31,19 @@ class DocumentIngestionControllerTest {
     void setUp() {
         MarkdownTextDocumentParser parser =
                 new MarkdownTextDocumentParser(new DocumentCleaningPipeline());
-        DocumentIngestionPreviewService service = new DocumentIngestionPreviewService(
+        DocumentProcessingService processingService = new DocumentProcessingService(
                 new DocumentParserRegistry(List.of(parser)),
                 new SectionAwareTextChunker(new ChunkingProperties(120, 20))
         );
+        DocumentIngestionPreviewService service = new DocumentIngestionPreviewService(processingService);
         mockMvc = MockMvcBuilders
-                .standaloneSetup(new DocumentIngestionController(service))
+                .standaloneSetup(new DocumentIngestionController(
+                        service,
+                        new DocumentIngestionPreparationService(
+                                processingService,
+                                new DocumentChecksumService()
+                        )
+                ))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
     }
@@ -68,5 +78,77 @@ class DocumentIngestionControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("DOCUMENT_PARSE_FAILED"))
                 .andExpect(jsonPath("$.path").value("/api/v1/documents/preview"));
+    }
+
+    @Test
+    void preparesDocumentWithBusinessMetadata() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "vpn.md",
+                "text/markdown",
+                "# VPN 手册\n\n## 登录\n\n使用公司账号登录。"
+                        .getBytes(StandardCharsets.UTF_8)
+        );
+        MockMultipartFile metadata = new MockMultipartFile(
+                "metadata",
+                "metadata.json",
+                "application/json",
+                """
+                        {
+                          "tenantId": "00000000-0000-0000-0000-000000000001",
+                          "externalDocumentId": "IT-VPN-004",
+                          "title": "VPN 手册",
+                          "source": "IT 服务台",
+                          "category": "MANUAL",
+                          "version": "2.3",
+                          "updatedAt": "2026-05-20T00:00:00Z",
+                          "permissionLevel": "INTERNAL",
+                          "department": "信息技术部"
+                        }
+                        """.getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/v1/documents/prepare")
+                        .file(file)
+                        .file(metadata))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.document.externalDocumentId").value("IT-VPN-004"))
+                .andExpect(jsonPath("$.document.checksum").isNotEmpty())
+                .andExpect(jsonPath("$.chunks[0].department").value("信息技术部"))
+                .andExpect(jsonPath("$.chunks[0].permissionLevel").value("INTERNAL"));
+    }
+
+    @Test
+    void returnsStructuredValidationErrorForMissingMetadataField() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "vpn.md",
+                "text/markdown",
+                "# VPN 手册\n\n正文。".getBytes(StandardCharsets.UTF_8)
+        );
+        MockMultipartFile metadata = new MockMultipartFile(
+                "metadata",
+                "metadata.json",
+                "application/json",
+                """
+                        {
+                          "tenantId": "00000000-0000-0000-0000-000000000001",
+                          "externalDocumentId": "IT-VPN-004",
+                          "title": "VPN 手册",
+                          "source": "IT 服务台",
+                          "category": "MANUAL",
+                          "version": "2.3",
+                          "updatedAt": "2026-05-20T00:00:00Z",
+                          "permissionLevel": "INTERNAL"
+                        }
+                        """.getBytes(StandardCharsets.UTF_8)
+        );
+
+        mockMvc.perform(multipart("/api/v1/documents/prepare")
+                        .file(file)
+                        .file(metadata))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"))
+                .andExpect(jsonPath("$.message").value("department: 不能为空"));
     }
 }

@@ -15,8 +15,10 @@ class DocumentIngestionPreviewServiceTest {
     private final MarkdownTextDocumentParser parser =
             new MarkdownTextDocumentParser(new DocumentCleaningPipeline());
     private final DocumentIngestionPreviewService service = new DocumentIngestionPreviewService(
-            new DocumentParserRegistry(List.of(parser)),
-            new SectionAwareTextChunker(new ChunkingProperties(120, 20))
+            new DocumentProcessingService(
+                    new DocumentParserRegistry(List.of(parser)),
+                    new SectionAwareTextChunker(new ChunkingProperties(120, 20))
+            )
     );
 
     @Test
