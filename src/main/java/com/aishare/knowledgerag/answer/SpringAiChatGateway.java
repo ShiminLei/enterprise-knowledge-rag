@@ -55,8 +55,8 @@ public class SpringAiChatGateway implements ChatGateway {
         ChatModel model = requiredModel();
         try {
             return model.stream(prompt(systemPrompt, userPrompt))
-                    .map(this::responseText)
-                    .filter(text -> text != null && !text.isEmpty())
+                    .mapNotNull(this::responseText)
+                    .filter(text -> !text.isEmpty())
                     .switchIfEmpty(Flux.error(
                             new ChatGenerationException("聊天模型返回了空答案")))
                     .onErrorMap(exception -> exception instanceof ChatGenerationException

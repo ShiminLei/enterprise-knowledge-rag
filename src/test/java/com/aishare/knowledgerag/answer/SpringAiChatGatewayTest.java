@@ -51,6 +51,24 @@ class SpringAiChatGatewayTest {
                 .containsExactly("请使用", "公司账号", "登录。[1]");
     }
 
+    @Test
+    void ignoresTerminalResponseWithoutText() {
+        ChatModel model = mock(ChatModel.class);
+        ChatResponse terminalResponse = mock(ChatResponse.class);
+        when(terminalResponse.getResult()).thenReturn(null);
+        when(model.stream(any(Prompt.class))).thenReturn(Flux.just(
+                response("连续五次登录失败"),
+                terminalResponse
+        ));
+        SpringAiChatGateway gateway = new SpringAiChatGateway(
+                Optional.of(model),
+                executor()
+        );
+
+        assertThat(gateway.stream("system", "user").collectList().block())
+                .containsExactly("连续五次登录失败");
+    }
+
     private ChatResponse response(String text) {
         return new ChatResponse(List.of(
                 new Generation(new AssistantMessage(text))
