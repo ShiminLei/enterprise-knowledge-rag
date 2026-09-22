@@ -11,6 +11,8 @@ import com.aishare.knowledgerag.retrieval.RetrievedChunk;
 import com.aishare.knowledgerag.retrieval.VectorSearchService;
 import com.aishare.knowledgerag.security.AccessContext;
 import com.aishare.knowledgerag.security.AccessContextService;
+import com.aishare.knowledgerag.security.AuthenticatedIdentity;
+import com.aishare.knowledgerag.security.CurrentAuthenticatedIdentityProvider;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,24 +29,27 @@ public class KnowledgeSearchController {
     private final HybridSearchService hybridSearchService;
     private final RetrievalProperties retrievalProperties;
     private final AccessContextService accessContextService;
+    private final CurrentAuthenticatedIdentityProvider identityProvider;
 
     public KnowledgeSearchController(
             VectorSearchService searchService,
             HybridSearchService hybridSearchService,
             RetrievalProperties retrievalProperties,
-            AccessContextService accessContextService
+            AccessContextService accessContextService,
+            CurrentAuthenticatedIdentityProvider identityProvider
     ) {
         this.searchService = searchService;
         this.hybridSearchService = hybridSearchService;
         this.retrievalProperties = retrievalProperties;
         this.accessContextService = accessContextService;
+        this.identityProvider = identityProvider;
     }
 
     @PostMapping("/vector")
     public VectorSearchResponse search(@Valid @RequestBody VectorSearchRequest request) {
+        AuthenticatedIdentity identity = identityProvider.current();
         AccessContext accessContext = accessContextService.resolve(
-                request.tenantId(), request.userId()
-        );
+                identity.tenantId(), identity.userId());
         List<RetrievedChunk> results = searchService.search(
                 request.toQuery(retrievalProperties, accessContext)
         );
@@ -53,9 +58,9 @@ public class KnowledgeSearchController {
 
     @PostMapping("/hybrid")
     public HybridSearchResponse hybridSearch(@Valid @RequestBody HybridSearchRequest request) {
+        AuthenticatedIdentity identity = identityProvider.current();
         AccessContext accessContext = accessContextService.resolve(
-                request.tenantId(), request.userId()
-        );
+                identity.tenantId(), identity.userId());
         List<HybridSearchResult> results = hybridSearchService.search(
                 request.toQuery(retrievalProperties, accessContext)
         );

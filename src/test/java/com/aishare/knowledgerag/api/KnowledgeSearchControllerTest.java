@@ -7,6 +7,8 @@ import com.aishare.knowledgerag.retrieval.VectorSearchService;
 import com.aishare.knowledgerag.security.AccessContext;
 import com.aishare.knowledgerag.security.AccessContextService;
 import com.aishare.knowledgerag.security.PermissionLevel;
+import com.aishare.knowledgerag.security.AuthenticatedIdentity;
+import com.aishare.knowledgerag.security.CurrentAuthenticatedIdentityProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -33,6 +35,12 @@ class KnowledgeSearchControllerTest {
         VectorSearchService service = mock(VectorSearchService.class);
         HybridSearchService hybridSearchService = mock(HybridSearchService.class);
         AccessContextService accessContextService = mock(AccessContextService.class);
+        CurrentAuthenticatedIdentityProvider identityProvider =
+                mock(CurrentAuthenticatedIdentityProvider.class);
+        when(identityProvider.current()).thenReturn(new AuthenticatedIdentity(
+                UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                "zhangsan"
+        ));
         when(service.search(any())).thenReturn(List.of());
         when(hybridSearchService.search(any())).thenReturn(List.of());
         when(accessContextService.resolve(any(), any())).thenReturn(new AccessContext(
@@ -45,7 +53,8 @@ class KnowledgeSearchControllerTest {
                         service,
                         hybridSearchService,
                         new RetrievalProperties(20, 20, 5, 0.35, 60),
-                        accessContextService
+                        accessContextService,
+                        identityProvider
                 ))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
@@ -57,9 +66,7 @@ class KnowledgeSearchControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "question": "如何登录 VPN？",
-                                  "tenantId": "00000000-0000-0000-0000-000000000001",
-                                  "userId": "zhangsan"
+                                  "question": "如何登录 VPN？"
                                 }
                                 """))
                 .andExpect(status().isOk())
@@ -75,8 +82,6 @@ class KnowledgeSearchControllerTest {
                         .content("""
                                 {
                                   "question": "如何登录 VPN？",
-                                  "tenantId": "00000000-0000-0000-0000-000000000001",
-                                  "userId": "zhangsan",
                                   "topK": 100
                                 }
                                 """))
@@ -90,9 +95,7 @@ class KnowledgeSearchControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {
-                                  "question": "VPN 错误码 720",
-                                  "tenantId": "00000000-0000-0000-0000-000000000001",
-                                  "userId": "zhangsan"
+                                  "question": "VPN 错误码 720"
                                 }
                                 """))
                 .andExpect(status().isOk())

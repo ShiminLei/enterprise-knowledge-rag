@@ -9,6 +9,8 @@ import com.aishare.knowledgerag.ingestion.DocumentImportService;
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.IngestionPreview;
 import com.aishare.knowledgerag.ingestion.PreparedIngestion;
+import com.aishare.knowledgerag.security.AuthenticatedIdentity;
+import com.aishare.knowledgerag.security.CurrentAuthenticatedIdentityProvider;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
@@ -28,15 +30,18 @@ public class DocumentIngestionController {
     private final DocumentIngestionPreviewService previewService;
     private final DocumentIngestionPreparationService preparationService;
     private final DocumentImportService importService;
+    private final CurrentAuthenticatedIdentityProvider identityProvider;
 
     public DocumentIngestionController(
             DocumentIngestionPreviewService previewService,
             DocumentIngestionPreparationService preparationService,
-            DocumentImportService importService
+            DocumentImportService importService,
+            CurrentAuthenticatedIdentityProvider identityProvider
     ) {
         this.previewService = previewService;
         this.preparationService = preparationService;
         this.importService = importService;
+        this.identityProvider = identityProvider;
     }
 
     @PostMapping(value = "/preview", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -58,11 +63,12 @@ public class DocumentIngestionController {
             @Valid @RequestPart("metadata") DocumentImportMetadataRequest metadata
     ) {
         try {
+            AuthenticatedIdentity identity = identityProvider.current();
             return preparationService.prepare(
                     file.getOriginalFilename(),
                     file.getContentType(),
                     file.getBytes(),
-                    metadata.toDomain()
+                    metadata.toDomain(identity.tenantId())
             );
         } catch (IOException exception) {
             throw new DocumentParseException("读取上传文件失败", exception);
@@ -75,11 +81,12 @@ public class DocumentIngestionController {
             @Valid @RequestPart("metadata") DocumentImportMetadataRequest metadata
     ) {
         try {
+            AuthenticatedIdentity identity = identityProvider.current();
             DocumentImportResult result = importService.importDocument(
                     file.getOriginalFilename(),
                     file.getContentType(),
                     file.getBytes(),
-                    metadata.toDomain()
+                    metadata.toDomain(identity.tenantId())
             );
             HttpStatus status = result.outcome() == DocumentImportOutcome.IMPORTED
                     ? HttpStatus.CREATED

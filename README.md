@@ -1,27 +1,27 @@
 # 企业知识库智能查询与治理系统
 
-这是题目二的实现工程。系统采用模块化单体架构，以 Spring AI、PostgreSQL/pgvector、BM25 和 RRF 为核心，覆盖文档导入、混合检索、权限治理、结构化回答、引用、评测、可观测性与全部拔高项。
+这是题目二的实现工程。系统采用模块化单体架构，以 Spring AI、PostgreSQL/pgvector、关键词检索和 RRF 为核心，逐步实现文档导入、混合检索、权限治理、引用回答、评测与可观测性。
 
 ## 当前进度
 
-第一阶段已完成：
+目前已完成：
 
-- Maven/Spring Boot 工程骨架
-- 核心领域模型
-- PostgreSQL/pgvector 数据库迁移
+- Markdown、TXT、PDF、DOCX 解析、清洗、切块和版本去重
+- Spring AI 批量 Embedding 与 PostgreSQL/pgvector 持久化
+- 向量检索、关键词检索和 RRF 混合检索
+- 基于引用的 RAG 回答、上下文组装和 Prompt 注入防护
+- JDBC Chat Memory、请求审计、指标和 AI 调用容错
+- JWT 身份认证及租户、部门、密级权限过滤
 - PostgreSQL、Nacos 与可选 Ollama 的 Docker Compose
-- 10 份 Mock 企业知识文档
-- 基础配置和包结构
-- Maven Wrapper 启动脚本
-- 架构基线与功能验收矩阵
+- 10 份跨部门、跨权限和跨版本的 Mock 企业知识文档
 
-尚未实现文档摄取、检索、问答等业务逻辑；这些将在后续阶段逐步完成。
+评测、流式输出、Prompt 数据库版本管理和管理页面将在后续步骤完成。
 
 ## 架构原则
 
 - Spring AI 是唯一 AI 主框架，不混用 LangChain4j 主链路。
 - PostgreSQL 保存业务数据，pgvector 保存真实向量。
-- BM25 与向量并行召回，使用 RRF 融合。
+- 关键词与向量召回使用 RRF 融合。
 - 租户、部门和权限过滤必须在生成答案前完成。
 - 引用由服务端基于真实检索结果生成。
 - 默认使用 1024 维 Embedding，数据库向量列与模型维度必须一致。
@@ -51,6 +51,64 @@ Nacos 控制台地址为 `http://localhost:8081/nacos/`，PostgreSQL 监听 `loc
 chmod +x mvnw
 ./mvnw test
 ```
+
+## JWT 认证
+
+所有 `/api/**` 接口都要求请求头 `Authorization: Bearer <JWT>`。JWT 使用 HS256 验签，必须包含：
+
+- `iss`：默认是 `enterprise-knowledge-rag`
+- `sub`：用户 ID，例如 `zhangsan`
+- `tenant_id`：租户 UUID
+- `exp`：过期时间
+- `scope`：文档准备和导入还需要 `knowledge.write`
+
+启动前必须提供一个至少 32 字节的签名密钥：
+
+```bash
+export RAG_JWT_SECRET="$(openssl rand -base64 32)"
+```
+
+问答和检索请求体不再接收 `tenantId`、`userId`；文档元数据也不再接收 `tenantId`。这些身份字段只从验签成功的 JWT 中取得，业务层随后再从数据库加载部门和密级权限。
+
+生成一小时有效的普通用户令牌：
+
+```bash
+TOKEN="$(./scripts/generate-dev-jwt.sh)"
+```
+
+生成具有文档写入权限的令牌：
+
+```bash
+WRITE_TOKEN="$(./scripts/generate-dev-jwt.sh \
+  zhangsan \
+  00000000-0000-0000-0000-000000000001 \
+  knowledge.write)"
+```
+
+调用检索接口时，请求体只包含业务参数：
+
+```bash
+curl -i http://localhost:8080/api/v1/search/vector \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -d '{"question":"如何登录 VPN？"}'
+```
+
+`generate-dev-jwt.sh` 只用于本地学习和联调。生产环境应由统一身份认证系统登录并签发令牌，业务服务只负责验签。
+
+## 流式回答
+
+同步问答接口仍为 `POST /api/v1/answers`。需要 SSE 事件流时使用：
+
+```bash
+curl -N http://localhost:8080/api/v1/answers/stream \
+  -H "Authorization: Bearer $TOKEN" \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: text/event-stream' \
+  -d '{"question":"如何登录 VPN？"}'
+```
+
+事件顺序为 `started`、一个或多个 `delta`、`citations`、`completed`。如果生成失败，连接中会收到 `error` 事件。当前实现是在完整 RAG 回答生成并持久化后分片推送，保证同步和流式接口共享相同的权限、引用、会话与审计逻辑；后续可以继续升级为模型原生逐 Token 流式输出。
 
 ## Mock 文档
 

@@ -50,6 +50,16 @@ management:
       show-details: when-authorized
 
 rag:
+  streaming:
+    timeout: ${RAG_STREAM_TIMEOUT:120s}
+    chunk-characters: ${RAG_STREAM_CHUNK_CHARACTERS:24}
+    core-threads: ${RAG_STREAM_CORE_THREADS:2}
+    max-threads: ${RAG_STREAM_MAX_THREADS:8}
+    queue-capacity: ${RAG_STREAM_QUEUE_CAPACITY:50}
+  security:
+    jwt:
+      issuer: ${RAG_JWT_ISSUER:enterprise-knowledge-rag}
+      secret: ${RAG_JWT_SECRET}
   ai-resilience:
     max-attempts: ${AI_RETRY_MAX_ATTEMPTS:3}
     retry-wait: ${AI_RETRY_WAIT:500ms}

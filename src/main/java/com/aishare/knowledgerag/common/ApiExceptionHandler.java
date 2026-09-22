@@ -4,6 +4,7 @@ import com.aishare.knowledgerag.answer.ChatGenerationException;
 import com.aishare.knowledgerag.answer.ChatUnavailableException;
 import com.aishare.knowledgerag.conversation.ConversationNotFoundException;
 import com.aishare.knowledgerag.security.KnowledgeAccessDeniedException;
+import com.aishare.knowledgerag.security.InvalidAuthenticatedIdentityException;
 import com.aishare.knowledgerag.ingestion.DocumentParseException;
 import com.aishare.knowledgerag.ingestion.DocumentVersionConflictException;
 import com.aishare.knowledgerag.embedding.EmbeddingGenerationException;
@@ -113,6 +114,15 @@ public class ApiExceptionHandler {
             HttpServletRequest request
     ) {
         return error(HttpStatus.FORBIDDEN, "KNOWLEDGE_ACCESS_DENIED", exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(InvalidAuthenticatedIdentityException.class)
+    public ResponseEntity<ApiError> handleInvalidAuthenticatedIdentity(
+            InvalidAuthenticatedIdentityException exception,
+            HttpServletRequest request
+    ) {
+        return error(HttpStatus.UNAUTHORIZED, "INVALID_AUTHENTICATED_IDENTITY",
+                exception.getMessage(), request);
     }
 
     private ResponseEntity<ApiError> error(

@@ -11,7 +11,6 @@ import java.time.Instant;
 import java.util.UUID;
 
 public record DocumentImportMetadataRequest(
-        @NotNull(message = "不能为空") UUID tenantId,
         @NotBlank(message = "不能为空") @Size(max = 128, message = "长度不能超过 128") String externalDocumentId,
         @NotBlank(message = "不能为空") @Size(max = 300, message = "长度不能超过 300") String title,
         @NotBlank(message = "不能为空") @Size(max = 500, message = "长度不能超过 500") String source,
@@ -21,7 +20,7 @@ public record DocumentImportMetadataRequest(
         @NotNull(message = "不能为空") PermissionLevel permissionLevel,
         @NotBlank(message = "不能为空") @Size(max = 128, message = "长度不能超过 128") String department
 ) {
-    public DocumentImportMetadata toDomain() {
+    public DocumentImportMetadata toDomain(UUID tenantId) {
         return new DocumentImportMetadata(
                 tenantId,
                 externalDocumentId.strip(),

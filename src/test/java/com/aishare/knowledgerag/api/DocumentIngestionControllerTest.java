@@ -13,6 +13,8 @@ import com.aishare.knowledgerag.ingestion.DocumentImportService;
 import com.aishare.knowledgerag.ingestion.DocumentParserRegistry;
 import com.aishare.knowledgerag.ingestion.DocumentProcessingService;
 import com.aishare.knowledgerag.ingestion.MarkdownTextDocumentParser;
+import com.aishare.knowledgerag.security.AuthenticatedIdentity;
+import com.aishare.knowledgerag.security.CurrentAuthenticatedIdentityProvider;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
@@ -45,6 +47,12 @@ class DocumentIngestionControllerTest {
         );
         DocumentIngestionPreviewService service = new DocumentIngestionPreviewService(processingService);
         importService = mock(DocumentImportService.class);
+        CurrentAuthenticatedIdentityProvider identityProvider =
+                mock(CurrentAuthenticatedIdentityProvider.class);
+        when(identityProvider.current()).thenReturn(new AuthenticatedIdentity(
+                UUID.fromString("00000000-0000-0000-0000-000000000001"),
+                "zhangsan"
+        ));
         mockMvc = MockMvcBuilders
                 .standaloneSetup(new DocumentIngestionController(
                         service,
@@ -52,7 +60,8 @@ class DocumentIngestionControllerTest {
                                 processingService,
                                 new DocumentChecksumService()
                         ),
-                        importService
+                        importService,
+                        identityProvider
                 ))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
@@ -105,7 +114,6 @@ class DocumentIngestionControllerTest {
                 "application/json",
                 """
                         {
-                          "tenantId": "00000000-0000-0000-0000-000000000001",
                           "externalDocumentId": "IT-VPN-004",
                           "title": "VPN 手册",
                           "source": "IT 服务台",
@@ -142,7 +150,6 @@ class DocumentIngestionControllerTest {
                 "application/json",
                 """
                         {
-                          "tenantId": "00000000-0000-0000-0000-000000000001",
                           "externalDocumentId": "IT-VPN-004",
                           "title": "VPN 手册",
                           "source": "IT 服务台",
@@ -196,7 +203,6 @@ class DocumentIngestionControllerTest {
                 "application/json",
                 """
                         {
-                          "tenantId": "00000000-0000-0000-0000-000000000001",
                           "externalDocumentId": "IT-VPN-004",
                           "title": "VPN 手册",
                           "source": "IT 服务台",
