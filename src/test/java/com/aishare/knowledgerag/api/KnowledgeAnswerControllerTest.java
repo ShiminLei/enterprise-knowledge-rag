@@ -1,8 +1,8 @@
 package com.aishare.knowledgerag.api;
 
 import com.aishare.knowledgerag.common.ApiExceptionHandler;
+import com.aishare.knowledgerag.audit.AuditedConversationalAnswerService;
 import com.aishare.knowledgerag.conversation.ConversationAnswer;
-import com.aishare.knowledgerag.conversation.ConversationalAnswerService;
 import com.aishare.knowledgerag.retrieval.RetrievalProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -26,7 +26,8 @@ class KnowledgeAnswerControllerTest {
 
     @BeforeEach
     void setUp() {
-        ConversationalAnswerService answerService = mock(ConversationalAnswerService.class);
+        AuditedConversationalAnswerService answerService =
+                mock(AuditedConversationalAnswerService.class);
         when(answerService.answer(any(), any())).thenReturn(new ConversationAnswer(
                 UUID.fromString("30000000-0000-0000-0000-000000000001"),
                 "请使用公司账号登录。[1]",

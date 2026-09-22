@@ -1,8 +1,8 @@
 package com.aishare.knowledgerag.api;
 
 import com.aishare.knowledgerag.api.dto.AnswerRequest;
+import com.aishare.knowledgerag.audit.AuditedConversationalAnswerService;
 import com.aishare.knowledgerag.conversation.ConversationAnswer;
-import com.aishare.knowledgerag.conversation.ConversationalAnswerService;
 import com.aishare.knowledgerag.retrieval.RetrievalProperties;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -16,11 +16,11 @@ import java.util.Optional;
 @RequestMapping("/api/v1/answers")
 public class KnowledgeAnswerController {
 
-    private final ConversationalAnswerService answerService;
+    private final AuditedConversationalAnswerService answerService;
     private final RetrievalProperties retrievalProperties;
 
     public KnowledgeAnswerController(
-            ConversationalAnswerService answerService,
+            AuditedConversationalAnswerService answerService,
             RetrievalProperties retrievalProperties
     ) {
         this.answerService = answerService;
