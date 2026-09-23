@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -24,6 +25,7 @@ import java.util.regex.Pattern;
 public class AnswerEvaluationService {
 
     private static final Pattern CITATION_MARKER = Pattern.compile("\\[(\\d+)]");
+    private static final Pattern CHINESE_NUMBER = Pattern.compile("[零〇一二两三四五六七八九十百千万]+");
 
     private final RagAnswerService answerService;
     private final EvaluationRepository evaluationRepository;
@@ -160,11 +162,85 @@ public class AnswerEvaluationService {
     }
 
     private List<String> missingKeywords(String answer, List<String> expectedKeywords) {
-        String normalizedAnswer = answer.toLowerCase(Locale.ROOT);
+        String normalizedAnswer = normalizeForKeywordMatch(answer);
         return expectedKeywords.stream()
                 .filter(keyword -> !normalizedAnswer.contains(
-                        keyword.toLowerCase(Locale.ROOT)))
+                        normalizeForKeywordMatch(keyword)))
                 .toList();
+    }
+
+    private String normalizeForKeywordMatch(String text) {
+        String normalized = Normalizer.normalize(text, Normalizer.Form.NFKC)
+                .toLowerCase(Locale.ROOT);
+        Matcher matcher = CHINESE_NUMBER.matcher(normalized);
+        StringBuilder converted = new StringBuilder();
+        while (matcher.find()) {
+            matcher.appendReplacement(
+                    converted,
+                    Matcher.quoteReplacement(Integer.toString(
+                            parseChineseNumber(matcher.group())
+                    ))
+            );
+        }
+        matcher.appendTail(converted);
+        return converted.toString().replaceAll("[\\s\\p{Punct}。，！？：；、]+", "");
+    }
+
+    private int parseChineseNumber(String value) {
+        if (value.chars().noneMatch(character -> chineseUnit((char) character) > 0)) {
+            int result = 0;
+            for (char character : value.toCharArray()) {
+                result = result * 10 + chineseDigit(character);
+            }
+            return result;
+        }
+
+        int total = 0;
+        int section = 0;
+        int number = 0;
+        for (char character : value.toCharArray()) {
+            int digit = chineseDigit(character);
+            if (digit >= 0) {
+                number = digit;
+                continue;
+            }
+            int unit = chineseUnit(character);
+            if (unit == 10_000) {
+                total += (section + number) * unit;
+                section = 0;
+                number = 0;
+            } else {
+                section += (number == 0 ? 1 : number) * unit;
+                number = 0;
+            }
+        }
+        return total + section + number;
+    }
+
+    private int chineseDigit(char character) {
+        return switch (character) {
+            case '零', '〇' -> 0;
+            case '一' -> 1;
+            case '二', '两' -> 2;
+            case '三' -> 3;
+            case '四' -> 4;
+            case '五' -> 5;
+            case '六' -> 6;
+            case '七' -> 7;
+            case '八' -> 8;
+            case '九' -> 9;
+            default -> -1;
+        };
+    }
+
+    private int chineseUnit(char character) {
+        return switch (character) {
+            case '十' -> 10;
+            case '百' -> 100;
+            case '千' -> 1_000;
+            case '万' -> 10_000;
+            default -> 0;
+        };
     }
 
     private Set<Integer> referencedMarkers(String answer) {

@@ -3,7 +3,6 @@ package com.aishare.knowledgerag.retrieval;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,15 +14,18 @@ public class HybridSearchService {
     private final VectorSearchService vectorSearchService;
     private final KeywordSearchRepository keywordSearchRepository;
     private final RetrievalProperties properties;
+    private final HybridResultReranker reranker;
 
     public HybridSearchService(
             VectorSearchService vectorSearchService,
             KeywordSearchRepository keywordSearchRepository,
-            RetrievalProperties properties
+            RetrievalProperties properties,
+            HybridResultReranker reranker
     ) {
         this.vectorSearchService = vectorSearchService;
         this.keywordSearchRepository = keywordSearchRepository;
         this.properties = properties;
+        this.reranker = reranker;
     }
 
     public List<HybridSearchResult> search(VectorSearchQuery requestQuery) {
@@ -36,9 +38,10 @@ public class HybridSearchService {
         addVectorResults(fused, vectorResults);
         addKeywordResults(fused, keywordResults);
 
-        return fused.values().stream()
+        List<HybridSearchResult> candidates = fused.values().stream()
                 .map(MutableFusion::toResult)
-                .sorted(Comparator.comparingDouble(HybridSearchResult::rrfScore).reversed())
+                .toList();
+        return reranker.rerank(candidates).stream()
                 .limit(requestQuery.topK())
                 .toList();
     }

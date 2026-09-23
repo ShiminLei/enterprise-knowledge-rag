@@ -5,6 +5,7 @@ import com.aishare.knowledgerag.evaluation.EvaluationRunReport;
 import com.aishare.knowledgerag.evaluation.EvaluationRunSummary;
 import com.aishare.knowledgerag.evaluation.AnswerEvaluationService;
 import com.aishare.knowledgerag.evaluation.EvaluationHistoryService;
+import com.aishare.knowledgerag.evaluation.EvaluationMarkdownReportService;
 import com.aishare.knowledgerag.evaluation.EvaluationRunRecord;
 import com.aishare.knowledgerag.evaluation.RetrievalEvaluationService;
 import com.aishare.knowledgerag.retrieval.RetrievalProperties;
@@ -39,6 +40,7 @@ class RetrievalEvaluationControllerTest {
     private RetrievalEvaluationService evaluationService;
     private AnswerEvaluationService answerEvaluationService;
     private EvaluationHistoryService historyService;
+    private EvaluationMarkdownReportService markdownReportService;
     private AccessContext accessContext;
 
     @BeforeEach
@@ -46,6 +48,7 @@ class RetrievalEvaluationControllerTest {
         evaluationService = mock(RetrievalEvaluationService.class);
         answerEvaluationService = mock(AnswerEvaluationService.class);
         historyService = mock(EvaluationHistoryService.class);
+        markdownReportService = mock(EvaluationMarkdownReportService.class);
         CurrentAuthenticatedIdentityProvider identityProvider =
                 mock(CurrentAuthenticatedIdentityProvider.class);
         AccessContextService accessContextService = mock(AccessContextService.class);
@@ -76,12 +79,29 @@ class RetrievalEvaluationControllerTest {
                         evaluationService,
                         answerEvaluationService,
                         historyService,
+                        markdownReportService,
                         new RetrievalProperties(20, 20, 5, 0.35, 60),
                         identityProvider,
                         accessContextService
                 ))
                 .setControllerAdvice(new ApiExceptionHandler())
                 .build();
+    }
+
+    @Test
+    void downloadsMarkdownReportForCurrentTenant() throws Exception {
+        UUID runId = UUID.fromString("40000000-0000-0000-0000-000000000003");
+        when(markdownReportService.render(accessContext.tenantId(), runId))
+                .thenReturn("# RAG 评测报告\n\n通过率：100%\n");
+
+        mockMvc.perform(get("/api/v1/admin/evaluations/runs/{runId}/report.md", runId))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .content().contentTypeCompatibleWith("text/markdown"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
+                        .content().string(org.hamcrest.Matchers.containsString("RAG 评测报告")));
+
+        verify(markdownReportService).render(accessContext.tenantId(), runId);
     }
 
     @Test

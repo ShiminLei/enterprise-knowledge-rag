@@ -2,6 +2,7 @@ package com.aishare.knowledgerag.persistence;
 
 import com.aishare.knowledgerag.document.DocumentCategory;
 import com.aishare.knowledgerag.retrieval.KeywordSearchRepository;
+import com.aishare.knowledgerag.retrieval.Bm25Scorer;
 import com.aishare.knowledgerag.retrieval.RetrievedChunk;
 import com.aishare.knowledgerag.retrieval.VectorSearchQuery;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -14,9 +15,14 @@ import java.util.List;
 public class JdbcKeywordSearchRepository implements KeywordSearchRepository {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final Bm25Scorer bm25Scorer;
 
-    public JdbcKeywordSearchRepository(NamedParameterJdbcTemplate jdbcTemplate) {
+    public JdbcKeywordSearchRepository(
+            NamedParameterJdbcTemplate jdbcTemplate,
+            Bm25Scorer bm25Scorer
+    ) {
         this.jdbcTemplate = jdbcTemplate;
+        this.bm25Scorer = bm25Scorer;
     }
 
     @Override
@@ -29,16 +35,11 @@ public class JdbcKeywordSearchRepository implements KeywordSearchRepository {
                        c.content,
                        c.title_path,
                        c.page_number,
+                       c.start_paragraph_number,
+                       c.end_paragraph_number,
                        c.category,
                        c.document_version,
-                       c.source,
-                       GREATEST(
-                           word_similarity(lower(:question), lower(c.content)),
-                           LEAST(1.0, word_similarity(
-                               lower(:question),
-                               lower(COALESCE(c.title_path, ''))
-                           ) * 1.2)
-                       ) AS score
+                       c.source
                 FROM knowledge_chunk c
                 JOIN knowledge_document d ON d.id = c.document_id
                 WHERE c.tenant_id = :tenantId
@@ -68,36 +69,34 @@ public class JdbcKeywordSearchRepository implements KeywordSearchRepository {
                       )
                   )
                   __CATEGORY_FILTER__
-                  AND (
-                      lower(:question) <% lower(c.content)
-                      OR lower(:question) <% lower(COALESCE(c.title_path, ''))
-                      OR lower(c.content) LIKE '%' || lower(:question) || '%'
-                  )
-                ORDER BY score DESC, c.document_updated_at DESC, c.chunk_index
-                LIMIT :topK
+                ORDER BY c.document_updated_at DESC, c.chunk_index
+                LIMIT 5000
                 """.replace("__CATEGORY_FILTER__", categoryFilter);
 
         MapSqlParameterSource parameters = new MapSqlParameterSource()
-                .addValue("question", query.question())
                 .addValue("tenantId", query.accessContext().tenantId())
-                .addValue("userId", query.accessContext().userId())
-                .addValue("topK", query.topK());
+                .addValue("userId", query.accessContext().userId());
         if (query.category() != null) {
             parameters.addValue("category", query.category().name());
         }
 
-        return jdbcTemplate.query(sql, parameters, (resultSet, rowNumber) -> new RetrievedChunk(
+        List<RetrievedChunk> corpus = jdbcTemplate.query(sql, parameters, (resultSet, rowNumber) -> new RetrievedChunk(
                 resultSet.getObject("id", java.util.UUID.class),
                 resultSet.getObject("document_id", java.util.UUID.class),
                 resultSet.getInt("chunk_index"),
                 resultSet.getString("content"),
                 resultSet.getString("title_path"),
                 resultSet.getObject("page_number", Integer.class),
+                resultSet.getObject("start_paragraph_number", Integer.class),
+                resultSet.getObject("end_paragraph_number", Integer.class),
                 DocumentCategory.valueOf(resultSet.getString("category")),
                 resultSet.getString("document_version"),
                 resultSet.getString("source"),
-                resultSet.getDouble("score")
+                0
         ));
+        return bm25Scorer.rank(
+                query.question(), corpus, query.topK(), query.minScore()
+        );
     }
 
 }

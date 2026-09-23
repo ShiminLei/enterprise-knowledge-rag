@@ -1,6 +1,35 @@
 name: enterprise-knowledge-rag
 
 services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-knowledge_rag}
+      POSTGRES_USER: ${POSTGRES_USER:-rag}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rag_local_password}
+      RAG_JWT_SECRET: ${RAG_JWT_SECRET:?请在 .env 中设置 RAG_JWT_SECRET}
+      AI_CHAT_ENABLED: ${AI_CHAT_ENABLED:-none}
+      AI_EMBEDDING_ENABLED: ${AI_EMBEDDING_ENABLED:-none}
+      AI_BASE_URL: ${AI_BASE_URL:-https://api.openai.com}
+      AI_API_KEY: ${AI_API_KEY:-disabled}
+      AI_CHAT_MODEL: ${AI_CHAT_MODEL:-gpt-4.1-mini}
+      AI_EMBEDDING_MODEL: ${AI_EMBEDDING_MODEL:-text-embedding-3-small}
+      AI_EMBEDDING_DIMENSIONS: ${AI_EMBEDDING_DIMENSIONS:-1024}
+      NACOS_ENABLED: ${NACOS_ENABLED:-false}
+      NACOS_SERVER_ADDR: nacos:8848
+      NACOS_USERNAME: ${NACOS_USERNAME:-nacos}
+      NACOS_PASSWORD: ${NACOS_PASSWORD:-nacos}
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    restart: unless-stopped
+
   postgres:
     image: pgvector/pgvector:pg17
     environment:

@@ -1,6 +1,6 @@
 # 企业知识库智能查询与治理系统
 
-这是题目二的实现工程。系统采用模块化单体架构，以 Spring AI、PostgreSQL/pgvector、关键词检索和 RRF 为核心，逐步实现文档导入、混合检索、权限治理、引用回答、评测与可观测性。
+这是题目二的实现工程。系统采用模块化单体架构，以 Spring AI、PostgreSQL/pgvector、BM25 和 RRF 为核心，实现文档导入、混合检索、权限治理、引用回答、评测与可观测性。
 
 ## 当前进度
 
@@ -8,23 +8,23 @@
 
 - Markdown、TXT、PDF、DOCX 解析、清洗、切块和版本去重
 - Spring AI 批量 Embedding 与 PostgreSQL/pgvector 持久化
-- 向量检索、关键词检索和 RRF 混合检索
+- 向量检索、中文双字分词的 Okapi BM25、RRF 混合检索和二阶段业务重排
 - 基于引用的 RAG 回答、上下文组装和 Prompt 注入防护
 - JDBC Chat Memory、请求审计、指标和 AI 调用容错
 - JWT 身份认证及租户、部门、密级权限过滤
 - Spring AI 原生流式回答与 Prompt 数据库版本读取
 - 数据库驱动的混合检索离线评测与权限拒答用例
 - 20 条覆盖可回答、跨部门、越权、旧版本和无证据场景的评测集
-- PostgreSQL、Nacos 与可选 Ollama 的 Docker Compose
+- 可热更新检索参数的 Nacos 配置监听
+- PostgreSQL、Nacos、应用与可选 Ollama 的 Docker Compose
+- 可下载的 Markdown 评测报告
 - 10 份跨部门、跨权限和跨版本的 Mock 企业知识文档
-
-后续可以继续补充真实环境联调和部署说明。
 
 ## 架构原则
 
 - Spring AI 是唯一 AI 主框架，不混用 LangChain4j 主链路。
 - PostgreSQL 保存业务数据，pgvector 保存真实向量。
-- 关键词与向量召回使用 RRF 融合。
+- BM25 与向量召回使用 RRF 融合，再由业务重排器优先双路共同命中的证据。
 - 租户、部门和权限过滤必须在生成答案前完成。
 - 引用由服务端基于真实检索结果生成。
 - 默认使用 1024 维 Embedding，数据库向量列与模型维度必须一致。
@@ -38,6 +38,14 @@ cp .env.example .env
 docker compose up -d postgres nacos
 ```
 
+一键构建并启动应用、PostgreSQL 和 Nacos：
+
+```bash
+docker compose up -d --build
+```
+
+应用地址为 `http://localhost:8080/admin`。该命令只读取本地 `.env`，镜像构建上下文已明确排除 `.env`，不会把 API Key 打进镜像。
+
 需要本地模型时：
 
 ```bash
@@ -45,6 +53,16 @@ docker compose --profile local-ai up -d
 ```
 
 Nacos 控制台地址为 `http://localhost:8081/nacos/`，PostgreSQL 监听 `localhost:5432`。
+
+### Nacos 动态检索配置
+
+把 `docs/nacos-retrieval.properties` 的内容发布到 Nacos：
+
+- Data ID：`enterprise-knowledge-rag.properties`
+- Group：`DEFAULT_GROUP`
+- 配置格式：`Properties`
+
+并设置 `NACOS_ENABLED=true`。应用会在启动时拉取配置并注册监听；发布新的 `vector-top-k`、`keyword-top-k`、`final-top-k`、`min-score` 或 `rrf-k` 后无需重启。非法值不会部分生效，应用会继续使用上一版有效配置。
 
 ### 阿里云百炼模型
 
@@ -138,6 +156,14 @@ curl -N http://localhost:8080/api/v1/answers/stream \
 事件顺序为 `started`、一个或多个 `delta`、`citations`、`completed`。如果生成失败，连接中会收到 `error` 事件。`delta` 直接来自 Spring AI 的模型流；服务端一边转发、一边累积完整答案，只有流正常结束后才在短事务中保存用户消息、完整助手答案和引用。客户端中途断开时会取消模型订阅，并记录取消审计。
 
 模型已经输出第一个片段后不会自动重试，因为重新请求模型可能从头生成，导致前端看到重复或互相矛盾的半段答案。流中断时返回 `error`，由用户明确重新发起请求。
+
+同步回答是结构化 DTO，除 `answer` 和 `citations` 外，还返回：
+
+- `retrievedChunks`：片段正文、文档元数据、向量/BM25/RRF/重排分数
+- `confidence`：当前证据中最强检索置信度，范围 0～1
+- `cannotAnswerReason`：无可访问证据时为 `NO_ACCESSIBLE_EVIDENCE`
+
+引用中包含文档、Chunk、版本、页码、段落范围、原文摘录；当文档来源本身是 HTTP(S) 地址时还会返回 `sourceLink`。
 
 ## Prompt 版本
 
@@ -250,6 +276,13 @@ curl 'http://localhost:8080/api/v1/admin/evaluations/runs?limit=20' \
 
 ```bash
 curl http://localhost:8080/api/v1/admin/evaluations/runs/<runId> \
+  -H "Authorization: Bearer $EVALUATION_TOKEN"
+```
+
+下载同一次运行的 Markdown 报告：
+
+```bash
+curl -OJ http://localhost:8080/api/v1/admin/evaluations/runs/<runId>/report.md \
   -H "Authorization: Bearer $EVALUATION_TOKEN"
 ```
 

@@ -11,7 +11,9 @@ public record AiResilienceProperties(
         float failureRateThreshold,
         int slidingWindowSize,
         int minimumNumberOfCalls,
-        Duration openStateWait
+        Duration openStateWait,
+        int rateLimitPermits,
+        Duration rateLimitRefreshPeriod
 ) {
     public AiResilienceProperties {
         if (maxAttempts < 1 || maxAttempts > 5) {
@@ -30,5 +32,10 @@ public record AiResilienceProperties(
         if (openStateWait == null || openStateWait.isNegative() || openStateWait.isZero()) {
             throw new IllegalArgumentException("熔断恢复等待时间必须大于 0");
         }
+        if (rateLimitPermits < 1 || rateLimitRefreshPeriod == null
+                || rateLimitRefreshPeriod.isNegative() || rateLimitRefreshPeriod.isZero()) {
+            throw new IllegalArgumentException("AI 限流配置不正确");
+        }
     }
+
 }

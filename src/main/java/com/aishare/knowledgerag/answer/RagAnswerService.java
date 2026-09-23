@@ -51,7 +51,8 @@ public class RagAnswerService {
                 : NO_EVIDENCE_ANSWER;
         return new GroundedAnswer(
                 answer, plan.grounded(), plan.retrievedCount(), plan.citations(),
-                plan.promptVersion()
+                plan.promptVersion(), plan.retrievedChunks(), plan.confidence(),
+                plan.cannotAnswerReason()
         );
     }
 
@@ -65,7 +66,8 @@ public class RagAnswerService {
                 : Flux.just(NO_EVIDENCE_ANSWER);
         return new RagAnswerStream(
                 plan.grounded(), plan.retrievedCount(), plan.citations(),
-                plan.promptVersion(), content
+                plan.promptVersion(), plan.retrievedChunks(), plan.confidence(),
+                plan.cannotAnswerReason(), content
         );
     }
 
@@ -77,7 +79,10 @@ public class RagAnswerService {
                 contextualizeForRetrieval(query, history)
         );
         if (retrieved.isEmpty()) {
-            return new AnswerPlan(false, 0, List.of(), "", null);
+            return new AnswerPlan(
+                    false, 0, List.of(), List.of(), 0.0,
+                    "NO_ACCESSIBLE_EVIDENCE", "", null
+            );
         }
 
         PromptTemplate prompt = promptTemplateService.activeRagAnswerPrompt();
@@ -96,7 +101,34 @@ public class RagAnswerService {
                 %s
                 </sources>
                 """.formatted(conversationHistory, safe(query.question()), context.text());
-        return new AnswerPlan(true, retrieved.size(), context.citations(), userPrompt, prompt);
+        List<AnswerRetrievedChunk> retrievedChunks = retrieved.stream()
+                .map(AnswerRetrievedChunk::from)
+                .toList();
+        return new AnswerPlan(
+                true,
+                retrieved.size(),
+                context.citations(),
+                retrievedChunks,
+                confidence(retrieved),
+                null,
+                userPrompt,
+                prompt
+        );
+    }
+
+    private double confidence(List<HybridSearchResult> results) {
+        double best = results.stream()
+                .map(HybridSearchResult::vectorScore)
+                .filter(java.util.Objects::nonNull)
+                .mapToDouble(Double::doubleValue)
+                .max()
+                .orElseGet(() -> results.stream()
+                        .map(HybridSearchResult::keywordScore)
+                        .filter(java.util.Objects::nonNull)
+                        .mapToDouble(Double::doubleValue)
+                        .max()
+                        .orElse(0.0));
+        return Math.max(0.0, Math.min(1.0, best));
     }
 
     private VectorSearchQuery contextualizeForRetrieval(
@@ -162,14 +194,34 @@ public class RagAnswerService {
                     chunk.documentId(),
                     chunk.titlePath(),
                     chunk.pageNumber(),
+                    chunk.startParagraphNumber(),
+                    chunk.endParagraphNumber(),
+                    excerpt(chunk.content()),
                     chunk.source(),
-                    chunk.documentVersion()
+                    chunk.documentVersion(),
+                    sourceLink(chunk.source())
             ));
             if (content.length() < escapedContent.length()) {
                 break;
             }
         }
         return new ContextBundle(context.toString(), citations);
+    }
+
+    private String excerpt(String content) {
+        if (content == null || content.length() <= 300) {
+            return content;
+        }
+        return content.substring(0, 300) + "…";
+    }
+
+    private String sourceLink(String source) {
+        if (source == null) {
+            return null;
+        }
+        String normalized = source.toLowerCase(java.util.Locale.ROOT);
+        return normalized.startsWith("https://") || normalized.startsWith("http://")
+                ? source : null;
     }
 
     private String safe(String value) {
@@ -187,6 +239,9 @@ public class RagAnswerService {
             boolean grounded,
             int retrievedCount,
             List<AnswerCitation> citations,
+            List<AnswerRetrievedChunk> retrievedChunks,
+            double confidence,
+            String cannotAnswerReason,
             String userPrompt,
             PromptTemplate prompt
     ) {

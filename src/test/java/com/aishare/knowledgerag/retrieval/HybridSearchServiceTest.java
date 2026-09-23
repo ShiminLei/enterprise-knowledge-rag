@@ -28,7 +28,8 @@ class HybridSearchServiceTest {
         HybridSearchService service = new HybridSearchService(
                 vectorService,
                 keywordRepository,
-                new RetrievalProperties(20, 20, 5, 0.35, 60)
+                new RetrievalProperties(20, 20, 5, 0.35, 60),
+                new HybridResultReranker()
         );
 
         List<HybridSearchResult> results = service.search(query(5));
@@ -51,7 +52,8 @@ class HybridSearchServiceTest {
         HybridSearchService service = new HybridSearchService(
                 vectorService,
                 keywordRepository,
-                new RetrievalProperties(20, 20, 5, 0.35, 60)
+                new RetrievalProperties(20, 20, 5, 0.35, 60),
+                new HybridResultReranker()
         );
 
         assertThat(service.search(query(1))).hasSize(1);

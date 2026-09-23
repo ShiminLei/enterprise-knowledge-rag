@@ -9,10 +9,14 @@ public record RagAnswerStream(
         int retrievedCount,
         List<AnswerCitation> citations,
         String promptVersion,
+        List<AnswerRetrievedChunk> retrievedChunks,
+        double confidence,
+        String cannotAnswerReason,
         Flux<String> content
 ) {
     public RagAnswerStream {
         citations = List.copyOf(citations);
+        retrievedChunks = List.copyOf(retrievedChunks);
     }
 
     public RagAnswerStream(
@@ -21,6 +25,18 @@ public record RagAnswerStream(
             List<AnswerCitation> citations,
             Flux<String> content
     ) {
-        this(grounded, retrievedCount, citations, "none", content);
+        this(grounded, retrievedCount, citations, "none", List.of(),
+                grounded ? 1.0 : 0.0, grounded ? null : "NO_ACCESSIBLE_EVIDENCE", content);
+    }
+
+    public RagAnswerStream(
+            boolean grounded,
+            int retrievedCount,
+            List<AnswerCitation> citations,
+            String promptVersion,
+            Flux<String> content
+    ) {
+        this(grounded, retrievedCount, citations, promptVersion, List.of(),
+                grounded ? 1.0 : 0.0, grounded ? null : "NO_ACCESSIBLE_EVIDENCE", content);
     }
 }

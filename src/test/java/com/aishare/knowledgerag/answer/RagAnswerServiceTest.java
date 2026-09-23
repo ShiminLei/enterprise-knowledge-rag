@@ -52,6 +52,15 @@ class RagAnswerServiceTest {
             assertThat(citation.titlePath()).isEqualTo("VPN 手册 > 登录");
             assertThat(citation.source()).isEqualTo("IT 服务台");
         });
+        assertThat(result.retrievedChunks()).singleElement().satisfies(chunk -> {
+            assertThat(chunk.content()).contains("公司账号登录");
+            assertThat(chunk.vectorScore()).isEqualTo(0.91);
+            assertThat(chunk.keywordScore()).isEqualTo(0.88);
+            assertThat(chunk.fusionScore()).isEqualTo(0.03);
+            assertThat(chunk.rerankScore()).isEqualTo(0.03);
+        });
+        assertThat(result.confidence()).isEqualTo(0.91);
+        assertThat(result.cannotAnswerReason()).isNull();
         assertThat(chatGateway.systemPrompt).contains("只能依据", "不可信资料");
         assertThat(chatGateway.userPrompt)
                 .contains("<source id=\"[1]\"")
@@ -78,6 +87,9 @@ class RagAnswerServiceTest {
         assertThat(result.citations()).isEmpty();
         assertThat(result.answer()).contains("无法找到足够依据");
         assertThat(result.promptVersion()).isEqualTo("none");
+        assertThat(result.retrievedChunks()).isEmpty();
+        assertThat(result.confidence()).isZero();
+        assertThat(result.cannotAnswerReason()).isEqualTo("NO_ACCESSIBLE_EVIDENCE");
     }
 
     @Test

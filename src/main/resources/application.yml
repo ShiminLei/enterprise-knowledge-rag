@@ -67,6 +67,8 @@ rag:
     sliding-window-size: ${AI_CIRCUIT_WINDOW_SIZE:10}
     minimum-number-of-calls: ${AI_CIRCUIT_MIN_CALLS:5}
     open-state-wait: ${AI_CIRCUIT_OPEN_WAIT:30s}
+    rate-limit-permits: ${AI_RATE_LIMIT_PERMITS:100}
+    rate-limit-refresh-period: ${AI_RATE_LIMIT_REFRESH_PERIOD:1s}
   audit:
     model-name: ${AI_CHAT_MODEL:gpt-4.1-mini}
   conversation:
@@ -84,15 +86,19 @@ rag:
     vector-top-k: 20
     keyword-top-k: 20
     final-top-k: 5
-    min-score: 0.35
+    min-score: 0.50
     rrf-k: 60
   prompt:
     active-version: ${RAG_PROMPT_VERSION:v1}
   nacos:
     enabled: ${NACOS_ENABLED:false}
     server-address: ${NACOS_SERVER_ADDR:localhost:8848}
-    data-id: enterprise-knowledge-rag.yaml
+    namespace: ${NACOS_NAMESPACE:}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    data-id: ${NACOS_DATA_ID:enterprise-knowledge-rag.properties}
     group: DEFAULT_GROUP
+    timeout-ms: ${NACOS_TIMEOUT_MS:3000}
 
 logging:
   pattern:

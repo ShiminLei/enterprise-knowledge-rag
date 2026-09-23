@@ -7,6 +7,8 @@ import io.github.resilience4j.circuitbreaker.CircuitBreaker;
 import io.github.resilience4j.circuitbreaker.CircuitBreakerConfig;
 import io.github.resilience4j.retry.Retry;
 import io.github.resilience4j.retry.RetryConfig;
+import io.github.resilience4j.ratelimiter.RateLimiter;
+import io.github.resilience4j.ratelimiter.RateLimiterConfig;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -46,9 +48,15 @@ public class AiResilienceExecutor {
                 .permittedNumberOfCallsInHalfOpenState(2)
                 .recordException(this::isTransientFailure)
                 .build();
+        RateLimiterConfig rateLimiterConfig = RateLimiterConfig.custom()
+                .limitForPeriod(properties.rateLimitPermits())
+                .limitRefreshPeriod(properties.rateLimitRefreshPeriod())
+                .timeoutDuration(java.time.Duration.ZERO)
+                .build();
         return new Policy(
                 Retry.of(name, retryConfig),
-                CircuitBreaker.of(name, circuitConfig)
+                CircuitBreaker.of(name, circuitConfig),
+                RateLimiter.of(name, rateLimiterConfig)
         );
     }
 
@@ -70,11 +78,18 @@ public class AiResilienceExecutor {
         return false;
     }
 
-    private record Policy(Retry retry, CircuitBreaker circuitBreaker) {
+    private record Policy(
+            Retry retry,
+            CircuitBreaker circuitBreaker,
+            RateLimiter rateLimiter
+    ) {
 
         private <T> T execute(Supplier<T> operation) {
             Supplier<T> retried = Retry.decorateSupplier(retry, operation);
-            return CircuitBreaker.decorateSupplier(circuitBreaker, retried).get();
+            Supplier<T> protectedCall = CircuitBreaker.decorateSupplier(
+                    circuitBreaker, retried
+            );
+            return RateLimiter.decorateSupplier(rateLimiter, protectedCall).get();
         }
     }
 }

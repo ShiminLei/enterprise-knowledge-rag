@@ -101,6 +101,40 @@ class AnswerEvaluationServiceTest {
         assertThat(result.metrics()).containsEntry("expectedDocumentCited", false);
     }
 
+    @Test
+    void treatsChineseAndArabicNumberFormsAsEquivalentKeywords() {
+        RagAnswerService answerService = mock(RagAnswerService.class);
+        EvaluationRepository repository = mock(EvaluationRepository.class);
+        UUID documentId = UUID.randomUUID();
+        when(repository.findCases()).thenReturn(List.of(
+                evaluationCase(
+                        "vpn-lockout", true, List.of("IT-VPN-004"),
+                        List.of("五次", "30 分钟")
+                )
+        ));
+        when(repository.resolveDocumentIds(any(), any()))
+                .thenReturn(Map.of("IT-VPN-004", documentId));
+        when(answerService.answer(any(VectorSearchQuery.class)))
+                .thenReturn(new GroundedAnswer(
+                        "连续登录失败 5 次会锁定，锁定时长为 30分钟 [1]。",
+                        true,
+                        1,
+                        List.of(citation(documentId)),
+                        "v1"
+                ));
+        AnswerEvaluationService service = new AnswerEvaluationService(
+                answerService, repository
+        );
+
+        EvaluationCaseResult result = service.run(accessContext(), 5, 0.50)
+                .results().get(0);
+
+        assertThat(result.passed()).isTrue();
+        assertThat(result.metrics())
+                .containsEntry("keywordCoverage", 1.0)
+                .containsEntry("missingExpectedKeywords", List.of());
+    }
+
     private EvaluationCase evaluationCase(
             String key,
             boolean shouldAnswer,

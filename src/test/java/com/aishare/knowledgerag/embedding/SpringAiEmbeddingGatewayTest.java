@@ -26,7 +26,8 @@ class SpringAiEmbeddingGatewayTest {
 
     private AiResilienceExecutor executor() {
         return new AiResilienceExecutor(new AiResilienceProperties(
-                3, Duration.ZERO, 50, 10, 5, Duration.ofSeconds(30)
+                3, Duration.ZERO, 50, 10, 5, Duration.ofSeconds(30),
+                100, Duration.ofSeconds(1)
         ));
     }
 }

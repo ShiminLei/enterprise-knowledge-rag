@@ -15,6 +15,7 @@ import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.ObjectMapper;
 
 import java.time.Instant;
+import java.sql.Timestamp;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -118,7 +119,7 @@ public class JdbcEvaluationRepository implements EvaluationRepository {
                 new MapSqlParameterSource()
                         .addValue("id", runId)
                         .addValue("configuration", toJson(configuration))
-                        .addValue("startedAt", startedAt)
+                        .addValue("startedAt", Timestamp.from(startedAt))
         );
     }
 
@@ -164,7 +165,7 @@ public class JdbcEvaluationRepository implements EvaluationRepository {
                         .addValue("id", runId)
                         .addValue("status", status)
                         .addValue("summary", toJson(summary))
-                        .addValue("completedAt", completedAt)
+                        .addValue("completedAt", Timestamp.from(completedAt))
         );
     }
 

@@ -71,7 +71,10 @@ public class ConversationalAnswerService {
                                 answer.grounded(),
                                 answer.retrievedCount(),
                                 answer.citations(),
-                                answer.promptVersion()
+                                answer.promptVersion(),
+                                answer.retrievedChunks(),
+                                answer.confidence(),
+                                answer.cannotAnswerReason()
                         )
                 ));
         return new ConversationAnswerStream(
@@ -80,6 +83,9 @@ public class ConversationalAnswerService {
                 answer.retrievedCount(),
                 answer.citations(),
                 answer.promptVersion(),
+                answer.retrievedChunks(),
+                answer.confidence(),
+                answer.cannotAnswerReason(),
                 content
         );
     }

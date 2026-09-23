@@ -1,6 +1,7 @@
 package com.aishare.knowledgerag.resilience;
 
 import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import org.junit.jupiter.api.Test;
 
 import java.io.IOException;
@@ -54,6 +55,20 @@ class AiResilienceExecutorTest {
         assertThat(attempts).hasValue(2);
     }
 
+    @Test
+    void rejectsCallsThatExceedConfiguredAiRateLimit() {
+        AiResilienceExecutor executor = new AiResilienceExecutor(
+                new AiResilienceProperties(
+                        1, Duration.ZERO, 50, 10, 5, Duration.ofSeconds(30),
+                        1, Duration.ofSeconds(10)
+                )
+        );
+
+        assertThat(executor.executeChat(() -> "first")).isEqualTo("first");
+        assertThatThrownBy(() -> executor.executeChat(() -> "second"))
+                .isInstanceOf(RequestNotPermitted.class);
+    }
+
     private AiResilienceExecutor executor(int maxAttempts, int minimumCalls) {
         return new AiResilienceExecutor(new AiResilienceProperties(
                 maxAttempts,
@@ -61,7 +76,9 @@ class AiResilienceExecutorTest {
                 50,
                 Math.max(2, minimumCalls),
                 minimumCalls,
-                Duration.ofSeconds(30)
+                Duration.ofSeconds(30),
+                100,
+                Duration.ofSeconds(1)
         ));
     }
 }

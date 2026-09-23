@@ -1,6 +1,7 @@
 package com.aishare.knowledgerag.persistence;
 
 import com.aishare.knowledgerag.retrieval.RetrievedChunk;
+import com.aishare.knowledgerag.retrieval.Bm25Scorer;
 import com.aishare.knowledgerag.retrieval.VectorSearchQuery;
 import com.aishare.knowledgerag.security.AccessContext;
 import com.aishare.knowledgerag.security.PermissionLevel;
@@ -25,14 +26,16 @@ class JdbcKeywordSearchRepositoryTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void buildsChineseTrigramQueryWithAccessFilters() {
+    void loadsOnlyAccessibleCorpusBeforeBm25Scoring() {
         NamedParameterJdbcTemplate jdbcTemplate = mock(NamedParameterJdbcTemplate.class);
         when(jdbcTemplate.query(
                 anyString(),
                 any(SqlParameterSource.class),
                 any(RowMapper.class)
         )).thenReturn(List.<RetrievedChunk>of());
-        JdbcKeywordSearchRepository repository = new JdbcKeywordSearchRepository(jdbcTemplate);
+        JdbcKeywordSearchRepository repository = new JdbcKeywordSearchRepository(
+                jdbcTemplate, new Bm25Scorer()
+        );
 
         repository.search(new VectorSearchQuery(
                 "VPN 错误码 720",
@@ -54,7 +57,7 @@ class JdbcKeywordSearchRepositoryTest {
                 any(RowMapper.class)
         );
         assertThat(sql.getValue())
-                .contains("<% lower(c.content)")
+                .doesNotContain("word_similarity")
                 .contains("d.status = 'ACTIVE'")
                 .contains("FROM tenant_user_permission permission")
                 .contains("permission.department = c.department")
